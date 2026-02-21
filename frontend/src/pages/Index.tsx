@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { BrainCircuit } from "lucide-react";
 import { api } from "@/lib/api";
 import { getToken, getUserType, clearAuth } from "@/lib/auth";
 import { DashboardHeader } from "@/components/DashboardHeader";
@@ -13,16 +14,18 @@ import { CashRunway } from "@/components/CashRunway";
 import { RecurringPaymentsList } from "@/components/RecurringPaymentsList";
 import { RecurringPayments } from "@/components/RecurringPayments";
 import { AIInsightPanel } from "@/components/AIInsightPanel";
-import { CFOCommandBar } from "@/components/CFOCommandBar";
 import { SavingsStream } from "@/components/SavingsStream";
+import { AffordabilityAdvisor } from "@/components/AffordabilityAdvisor";
 import { getRuleBasedSavings } from "@/lib/savingsHeuristics";
 import type { AppData } from "@/lib/types";
+import type { AffordabilityInput } from "@/utils/buildAffordabilityPrompt";
 
 const Index = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const token = getToken()!;
   const userType = getUserType() ?? "sme";
+  const [affordabilityOpen, setAffordabilityOpen] = useState(false);
 
   const { data: summaryData } = useQuery({
     queryKey: ["summary", userType],
@@ -120,14 +123,37 @@ const Index = () => {
     estimatedPRSI: null, recurringTotal: 0, trueAvailable: 0, riskRatio: 0,
   };
 
+  const affordabilityInput: AffordabilityInput = useMemo(
+    () => ({
+      summary,
+      runway: runwayData ?? { days: 0, status: "critical", monthlyBurn: 0, trueAvailable: 0 },
+      forecast: forecastData?.forecast ?? [],
+      transactions: transactionsData?.transactions ?? [],
+    }),
+    [summary, runwayData, forecastData?.forecast, transactionsData?.transactions]
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* CFO Command Bar – always at top */}
+        {/* Affordability Advisor entry point */}
         <section className="flex justify-center pt-2">
-          <CFOCommandBar appData={appData} userType={userType} />
+          <div className="w-full max-w-3xl">
+            <button
+              type="button"
+              onClick={() => setAffordabilityOpen(true)}
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-left"
+            >
+              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
+                <BrainCircuit className="h-4 w-4" />
+              </span>
+              <span className="text-sm text-muted-foreground flex-1">
+                Ask the Affordability Advisor… e.g. &quot;Can I afford a dog?&quot; or &quot;Can I afford a €2,500/month hire?&quot;
+              </span>
+            </button>
+          </div>
         </section>
 
         <div className="flex items-center justify-between">
@@ -178,6 +204,12 @@ const Index = () => {
 
         <TransactionsTable transactions={transactionsData?.transactions ?? []} />
       </main>
+
+      <AffordabilityAdvisor
+        open={affordabilityOpen}
+        onClose={() => setAffordabilityOpen(false)}
+        input={affordabilityInput}
+      />
     </div>
   );
 };

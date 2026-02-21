@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const Groq = require('groq-sdk');
 const supabaseAdmin = require('../supabaseAdmin');
 const supabase = require('../supabaseClient');
 const { getTaxConfig } = require('../lib/tax-config');
 const { parseIntent, computeCFOAnswer, getRuleBasedSavings, formatAnswerText } = require('../lib/cfo-engine');
+const { SYSTEM_PROMPT, buildUserMessage } = require('../lib/buildAffordabilityPrompt');
 
 function validateUserTypeOptional(req, res, next) {
   const userType = req.query.user_type || req.body?.user_type;
@@ -91,9 +93,9 @@ router.post('/query', async (req, res) => {
       }
       appData = await buildAppData(req.userType, req.userId);
     }
-    const { intent, monthlyAmount } = parseIntent(queryText);
-    const result = computeCFOAnswer(appData, { monthlyAmount, targetRunwayDays: 60 });
-    const answerText = formatAnswerText(result, monthlyAmount, intent);
+    const { intent, monthlyAmount, oneOffAmount } = parseIntent(queryText);
+    const result = computeCFOAnswer(appData, { monthlyAmount, oneOffAmount, targetRunwayDays: 60 });
+    const answerText = formatAnswerText(result, monthlyAmount, intent, oneOffAmount);
     const actions = [
       'Simulate in What-if',
       'Add as recurring',
@@ -150,6 +152,86 @@ router.post('/savings', async (req, res) => {
   } catch (err) {
     console.error('CFO savings error', err);
     res.status(500).json({ error: err.message || 'CFO savings failed' });
+  }
+});
+
+// POST /cfo/affordability — AI Affordability Advisor (Groq)
+// Body: { question, financialSummary, options?: { priceExtracted, priceAboveTrueAvailable, trueAvailableNegative, forecastLowestNegative } }
+router.post('/affordability', async (req, res) => {
+  console.log('[affordability] route hit, body keys:', Object.keys(req.body || {}));
+  try {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'Affordability Advisor not configured (GROQ_API_KEY missing).' });
+    }
+    const { question, financialSummary, options = {} } = req.body;
+    if (!question || typeof question !== 'string' || !question.trim()) {
+      return res.status(400).json({ error: 'question is required.' });
+    }
+    if (!financialSummary || typeof financialSummary !== 'object') {
+      return res.status(400).json({ error: 'financialSummary is required.' });
+    }
+
+    const userContent = buildUserMessage(financialSummary, question.trim(), options);
+    console.log('[Groq affordability] incoming question:', question.trim());
+    console.log('[Groq affordability] user message sent to Groq:\n', userContent);
+    const client = new Groq({ apiKey });
+
+    const completion = await client.chat.completions.create({
+      model: 'qwen/qwen3-32b',
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ],
+      temperature: 0.1,
+      max_tokens: 1024,
+    });
+
+    const raw = completion.choices?.[0]?.message?.content?.trim() || '';
+    console.log('[Groq affordability] raw response:', raw);
+    let parsed;
+    try {
+      const jsonStr = raw.replace(/^[^]*?(\{[\s\S]*\})[^]*$/, '$1');
+      parsed = JSON.parse(jsonStr);
+    } catch (_) {
+      return res.status(502).json({
+        error: 'AI response was not valid JSON.',
+        raw: raw.slice(0, 500),
+      });
+    }
+
+    let verdict = ['AFFORD', 'CANNOT_AFFORD', 'RISKY'].includes(parsed.verdict) ? parsed.verdict : 'RISKY';
+    const riskLevel = ['LOW', 'MEDIUM', 'HIGH'].includes(parsed.risk_level) ? parsed.risk_level : 'MEDIUM';
+    let confidence = typeof parsed.confidence === 'number' ? Math.max(0, Math.min(100, parsed.confidence)) : 50;
+    let reasoning = typeof parsed.reasoning === 'string' ? parsed.reasoning : '';
+    let impact_summary = typeof parsed.impact_summary === 'string' ? parsed.impact_summary : '';
+    const estimated_purchase_cost = typeof parsed.estimated_purchase_cost === 'number' ? parsed.estimated_purchase_cost : null;
+    const estimated_monthly_cost = typeof parsed.estimated_monthly_cost === 'number' ? parsed.estimated_monthly_cost : null;
+
+    const priceExtracted = options.priceExtracted;
+    const trueAvailable = financialSummary.trueAvailableCash;
+    const effectiveCost = priceExtracted ?? estimated_purchase_cost;
+    if (typeof effectiveCost === 'number' && typeof trueAvailable === 'number' && effectiveCost > trueAvailable && verdict === 'AFFORD') {
+      verdict = 'CANNOT_AFFORD';
+      impact_summary = impact_summary || `Estimated cost (€${effectiveCost.toLocaleString('en-IE')}) exceeds your true available cash (€${trueAvailable.toLocaleString('en-IE')}).`;
+      if (!reasoning) {
+        reasoning = `Your true available cash is €${trueAvailable.toLocaleString('en-IE')} (after tax reserve and recurring commitments). The estimated cost of €${effectiveCost.toLocaleString('en-IE')} exceeds that amount.`;
+      }
+      confidence = Math.min(confidence, 95);
+    }
+
+    res.json({
+      verdict,
+      confidence,
+      reasoning,
+      impact_summary,
+      risk_level: verdict === 'CANNOT_AFFORD' ? 'HIGH' : riskLevel,
+      estimated_purchase_cost,
+      estimated_monthly_cost,
+    });
+  } catch (err) {
+    console.error('CFO affordability error', err);
+    res.status(500).json({ error: err.message || 'Affordability request failed.' });
   }
 });
 

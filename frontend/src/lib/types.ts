@@ -98,3 +98,26 @@ export interface CFOSavingsItem {
 export interface CFOSavingsResponse {
   items: CFOSavingsItem[];
 }
+
+/** Financial summary payload for Affordability Advisor (summarized numbers only) */
+export interface AffordabilitySummary {
+  bankBalance: number;
+  trueAvailableCash: number;
+  estimatedTaxLiability: number;
+  upcomingRecurring30Days: number;
+  forecastLowestPoint30Days: number;
+  monthlyIncomeTotal: number;
+  monthlyExpenseTotal: number;
+  riskStatus: string;
+}
+
+/** Affordability Advisor AI response */
+export interface AffordabilityAdvisorResponse {
+  verdict: "AFFORD" | "CANNOT_AFFORD" | "RISKY";
+  confidence: number;
+  reasoning: string;
+  impact_summary: string;
+  risk_level: "LOW" | "MEDIUM" | "HIGH";
+  estimated_purchase_cost: number | null;
+  estimated_monthly_cost: number | null;
+}

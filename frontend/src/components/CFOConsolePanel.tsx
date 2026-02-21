@@ -110,6 +110,11 @@ export function CFOConsolePanel({
               </div>
             ) : (
               <div className="space-y-4">
+                {lastResult?.answerText && (
+                  <p className="text-sm leading-relaxed text-foreground border-l-2 border-primary/30 pl-3 py-1">
+                    {lastResult.answerText}
+                  </p>
+                )}
                 {affordability !== null && (
                   <div className="flex items-center gap-2">
                     {affordability ? (

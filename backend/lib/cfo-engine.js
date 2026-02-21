@@ -15,21 +15,51 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-/** Parse query for intent and optional monthly amount (e.g. "Can I afford €2500/month hire?") */
+/** Parse query for intent and optional amount (monthly or one-off). */
 function parseIntent(queryText) {
-  const text = (queryText || '').toLowerCase();
-  const intent = text.includes('hire') || text.includes('employee') ? 'hire'
-    : text.includes('subscription') || text.includes('subscribe') ? 'subscription'
-    : text.includes('tax') || text.includes('vault') ? 'tax'
-    : text.includes('afford') || text.includes('spend') ? 'afford'
+  const text = (queryText || '').trim();
+  const lower = text.toLowerCase();
+  const intent = lower.includes('hire') || lower.includes('employee') ? 'hire'
+    : lower.includes('subscription') || lower.includes('subscribe') || lower.includes('/mo') || lower.includes('per month') ? 'subscription'
+    : lower.includes('tax') || lower.includes('vault') ? 'tax'
+    : lower.includes('afford') || lower.includes('spend') || lower.includes('cost') || /\d+/.test(text) ? 'afford'
     : 'general';
-  const amountMatch = text.match(/[\d\s]+(?:\.\d{2})?\s*(?:€|eur|euro)/i) || text.match(/€\s*([\d\s,.]+)/i) || text.match(/([\d,]+)\s*\/\s*month/i);
+
   let monthlyAmount = 0;
-  if (amountMatch) {
-    const numStr = (amountMatch[1] || amountMatch[0]).replace(/[\s,]/g, '');
+  let oneOffAmount = 0;
+
+  // €1,200 or 1200€ or € 1200 or 1200 euro
+  const withEuro = text.match(/€\s*([\d\s,.]+)|([\d\s,]+)\s*(?:€|eur|euro)/i);
+  // 500/month or 500 per month or 500/mo or €2500/month
+  const monthly = text.match(/([\d\s,.]+)\s*(?:\/|\/mo|per)\s*(?:month|mo|mth)/i);
+  // Plain number when question is about affording something
+  const affordContext = lower.includes('afford') || lower.includes('spend') || lower.includes('cost') || lower.includes('buy') || lower.includes('laptop') || lower.includes('pet');
+  const plainNumMatch = text.match(/\d[\d\s,.]*/);
+
+  if (monthly && monthly[1]) {
+    const numStr = monthly[1].replace(/[\s,]/g, '');
     monthlyAmount = parseFloat(numStr) || 0;
+  } else if (withEuro && (withEuro[1] || withEuro[2])) {
+    const numStr = (withEuro[1] || withEuro[2]).replace(/[\s,]/g, '');
+    const value = parseFloat(numStr) || 0;
+    if (lower.includes('month') || lower.includes('/mo') || lower.includes('per month')) {
+      monthlyAmount = value;
+    } else {
+      oneOffAmount = value;
+    }
+  } else if (affordContext && plainNumMatch) {
+    const numStr = (plainNumMatch[0] || '').replace(/[\s,]/g, '');
+    const value = parseFloat(numStr) || 0;
+    if (value > 0) {
+      if (lower.includes('month') || lower.includes('/mo') || lower.includes('per month') || lower.includes('hire') || lower.includes('subscription')) {
+        monthlyAmount = value;
+      } else {
+        oneOffAmount = value;
+      }
+    }
   }
-  return { intent, monthlyAmount };
+
+  return { intent, monthlyAmount, oneOffAmount };
 }
 
 function getUpcomingRecurringTotal(recurring, days = 30) {
@@ -123,12 +153,17 @@ function getCFOConfidence(appData, recurring) {
   return { confidence: Math.max(0, Math.min(100, score)), reasons };
 }
 
-function computeCFOAnswer(appData, { monthlyAmount = 0, targetRunwayDays = DEFAULT_RUNWAY_TARGET_DAYS } = {}) {
+function computeCFOAnswer(appData, { monthlyAmount = 0, oneOffAmount = 0, targetRunwayDays = DEFAULT_RUNWAY_TARGET_DAYS } = {}) {
   const detected = detectRecurringPayments(appData.transactions);
   const taxes = estimateTaxes(appData.transactions, appData.taxConfig);
   const safeToSpendNow = getSafeToSpendNow(appData);
   const runwayDays = getRunwayDays(appData);
-  const affordability = monthlyAmount <= 0 ? true : canAffordMonthly(appData, monthlyAmount);
+  let affordability = true;
+  if (oneOffAmount > 0) {
+    affordability = oneOffAmount <= safeToSpendNow;
+  } else if (monthlyAmount > 0) {
+    affordability = canAffordMonthly(appData, monthlyAmount);
+  }
   const recommendedMaxMonthly = getRecommendedMaxMonthly(appData, targetRunwayDays);
   const { confidence, reasons: confidenceReasons } = getCFOConfidence(appData, detected);
   const taxPct = appData.currentBalance > 0 ? ((taxes.total / appData.currentBalance) * 100).toFixed(1) : '0';
@@ -145,6 +180,8 @@ function computeCFOAnswer(appData, { monthlyAmount = 0, targetRunwayDays = DEFAU
     confidence,
     confidenceReasons,
     assumptions,
+    oneOffAmount,
+    monthlyAmount,
   };
 }
 
@@ -286,17 +323,21 @@ function getRuleBasedSavings(appData, userSettings = {}) {
   return items.slice(0, 6);
 }
 
-function formatAnswerText(result, monthlyAmount, intent) {
+function formatAnswerText(result, monthlyAmount, intent, oneOffAmount = 0) {
   const afford = result.affordability ? 'Yes' : 'No';
   const runway = result.runwayDays;
   const max = result.recommendedMaxMonthly;
+  const safe = result.safeToSpendNow.toLocaleString('en-IE', { maximumFractionDigits: 0 });
+  if (oneOffAmount > 0) {
+    return `Can you afford a one-off cost of €${oneOffAmount.toLocaleString('en-IE', { maximumFractionDigits: 0 })}? ${afford}. Safe to spend now: €${safe}. Runway: ${runway} days.`;
+  }
   if (intent === 'hire' && monthlyAmount > 0) {
-    return `Can you afford a €${monthlyAmount}/month hire? ${afford}. Current runway: ${runway} days. Recommended max new monthly commitment to keep ~60 days runway: €${max.toLocaleString('en-IE', { maximumFractionDigits: 0 })}.`;
+    return `Can you afford a €${monthlyAmount.toLocaleString('en-IE', { maximumFractionDigits: 0 })}/month hire? ${afford}. Current runway: ${runway} days. Recommended max new monthly commitment to keep ~60 days runway: €${max.toLocaleString('en-IE', { maximumFractionDigits: 0 })}.`;
   }
-  if (intent === 'subscription' && monthlyAmount > 0) {
-    return `Can you afford €${monthlyAmount}/month for a new subscription? ${afford}. Safe to spend now: €${result.safeToSpendNow.toLocaleString('en-IE', { maximumFractionDigits: 0 })}. Runway: ${runway} days.`;
+  if ((intent === 'subscription' || intent === 'afford') && monthlyAmount > 0) {
+    return `Can you afford €${monthlyAmount.toLocaleString('en-IE', { maximumFractionDigits: 0 })}/month? ${afford}. Safe to spend now: €${safe}. Runway: ${runway} days.`;
   }
-  return `Safe to spend now: €${result.safeToSpendNow.toLocaleString('en-IE', { maximumFractionDigits: 0 })}. Runway: ${runway} days. Recommended max monthly spend to maintain buffer: €${max.toLocaleString('en-IE', { maximumFractionDigits: 0 })}.`;
+  return `Safe to spend now: €${safe}. Runway: ${runway} days. Recommended max monthly spend to maintain buffer: €${max.toLocaleString('en-IE', { maximumFractionDigits: 0 })}.`;
 }
 
 module.exports = {
