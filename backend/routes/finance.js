@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabaseAdmin = require('../supabaseAdmin');
+const plaidClient = require('../lib/plaid-client');
 const { getTaxConfig, getLabels } = require('../lib/tax-config');
 const { requireAuth } = require('../lib/auth-middleware');
 const {
@@ -15,7 +16,53 @@ const {
 // All finance routes require auth. requireAuth sets req.userId and req.userType from JWT.
 router.use(requireAuth);
 
-async function getTransactions(userType) {
+// Normalise a Plaid transaction into the shape the finance engine expects.
+// Plaid convention: positive amount = money leaving the account (expense),
+//                  negative amount = money entering the account (income).
+function normalisePlaidTransaction(tx) {
+  return {
+    id: tx.transaction_id,
+    type: tx.amount > 0 ? 'expense' : 'income',
+    amount: Math.abs(tx.amount),
+    merchant: tx.merchant_name || tx.name,
+    category:
+      tx.personal_finance_category?.primary ||
+      (tx.category && tx.category[0]) ||
+      'Other',
+    date: tx.date,
+  };
+}
+
+async function fetchPlaidTransactions(accessToken) {
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 90);
+
+  const response = await plaidClient.transactionsGet({
+    access_token: accessToken,
+    start_date: startDate.toISOString().split('T')[0],
+    end_date: today.toISOString().split('T')[0],
+  });
+
+  return response.data.transactions.map(normalisePlaidTransaction);
+}
+
+// Returns transactions from Plaid if the user has connected their bank,
+// otherwise falls back to the shared seed data in Supabase.
+async function getTransactions(userType, userId = null) {
+  if (userId) {
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('plaid_access_token')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (profile?.plaid_access_token) {
+      return fetchPlaidTransactions(profile.plaid_access_token);
+    }
+  }
+
+  // Fall back to seed data
   const { data, error } = await supabaseAdmin
     .from('transactions')
     .select('*')
@@ -57,7 +104,7 @@ async function getSubscriptions(userId) {
 
 async function buildAppData(userType, userId = null) {
   const [transactions, subscriptions, currentBalance] = await Promise.all([
-    getTransactions(userType),
+    getTransactions(userType, userId),
     getSubscriptions(userId),
     getBalance(userId),
   ]);
@@ -108,7 +155,7 @@ router.put('/settings', requireAuth, async (req, res) => {
 
 // GET /finance/transactions
 router.get('/transactions', async (req, res) => {
-  const transactions = await getTransactions(req.userType);
+  const transactions = await getTransactions(req.userType, req.userId);
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -125,7 +172,7 @@ router.get('/forecast', async (req, res) => {
 
 // GET /finance/recurring
 router.get('/recurring', async (req, res) => {
-  const transactions = await getTransactions(req.userType);
+  const transactions = await getTransactions(req.userType, req.userId);
   const recurring = detectRecurringPayments(transactions);
   res.json({ recurring, count: recurring.length });
 });
