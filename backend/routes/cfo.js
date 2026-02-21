@@ -37,12 +37,6 @@ async function getTransactions(userType) {
   return data;
 }
 
-function getSeedMeta(userType) {
-  return userType === 'sme'
-    ? require('../data/seed-sme')
-    : require('../data/seed-individual');
-}
-
 async function getSubscriptions(userId) {
   if (!userId) return [];
   const { data, error } = await supabaseAdmin
