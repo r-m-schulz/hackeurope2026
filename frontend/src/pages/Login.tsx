@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { saveAuth } from "@/lib/auth";
 import type { UserType } from "@/lib/api";
 
@@ -7,7 +7,9 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"login" | "signup">("login");
+  const location = useLocation();
+  const initialTab = (location.state as { tab?: "login" | "signup" } | null)?.tab === "signup" ? "signup" : "login";
+  const [tab, setTab] = useState<"login" | "signup">(initialTab);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [userType, setUserType] = useState<UserType>("sme");
