@@ -110,7 +110,7 @@ export default function Landing() {
             </h1>
 
             <p className="text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 text-[#0a0a0a]/60 dark:text-white/60">
-              TrueBalance shows your real available cash after tax reserves and
+              PocketCFO shows your real available cash after tax reserves and
               recurring payments — so you're never surprised by the numbers.
             </p>
 
@@ -240,7 +240,7 @@ export default function Landing() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#76b900]">
               <PiggyBank className="h-4 w-4 text-[#0a0a0a]" />
             </div>
-            <span className="font-semibold text-[#0a0a0a] dark:text-white">TrueBalance</span>
+            <span className="font-semibold text-[#0a0a0a] dark:text-white">PocketCFO</span>
           </Link>
           <div className="flex items-center gap-6 text-sm text-[#0a0a0a]/45 dark:text-white/40">
             <Link to="/#features" className="hover:text-[#76b900] transition-colors">Features</Link>

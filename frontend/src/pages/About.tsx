@@ -10,9 +10,9 @@ export default function About() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
         <div className="prose prose-neutral dark:prose-invert max-w-none">
-          <h1 className="text-4xl font-bold text-foreground tracking-tight mb-4">About TrueBalance</h1>
+          <h1 className="text-4xl font-bold text-foreground tracking-tight mb-4">About PocketCFO</h1>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            TrueBalance was built because your bank balance alone doesn’t tell the full story. Tax
+            PocketCFO was built because your bank balance alone doesn’t tell the full story. Tax
             reserves, recurring payments, and upcoming bills can make “available” cash misleading.
             We help you see the truth.
           </p>
@@ -39,7 +39,7 @@ export default function About() {
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-2">What we do</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  TrueBalance shows true available cash (after tax and recurring commitments), a 30-day
+                  PocketCFO shows true available cash (after tax and recurring commitments), a 30-day
                   cash forecast, expense breakdown by category, cash runway, and simple AI-driven
                   insights. We focus on clarity, not complexity.
                 </p>
@@ -55,7 +55,7 @@ export default function About() {
                 <p className="text-muted-foreground leading-relaxed">
                   Small and medium businesses that need to manage cash flow and tax, and individuals
                   who want to know exactly where they stand. Whether you’re a freelancer, startup, or
-                  growing company, TrueBalance is built to keep things simple and actionable.
+                  growing company, PocketCFO is built to keep things simple and actionable.
                 </p>
               </div>
             </div>
@@ -67,7 +67,7 @@ export default function About() {
               <div>
                 <h2 className="text-xl font-semibold text-foreground mb-2">Built with care</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                  We built TrueBalance for HackEurope 2026 with a focus on real cash visibility and
+                  We built PocketCFO for HackEurope 2026 with a focus on real cash visibility and
                   usability. If you have feedback or ideas, we’d love to hear from you.
                 </p>
               </div>
