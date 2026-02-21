@@ -1,10 +1,8 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const router = express.Router();
 const supabaseAdmin = require('../supabaseAdmin');
-const supabase = require('../supabaseClient');
-const { getTaxConfig, getLabels, validateUserType } = require('../lib/tax-config');
+const { getTaxConfig, getLabels } = require('../lib/tax-config');
+const { requireAuth } = require('../lib/auth-middleware');
 const {
   detectRecurringPayments,
   generateForecastFromAppData,
@@ -24,16 +22,6 @@ async function getTransactions(userType) {
     .eq('user_type', userType);
   if (error) throw error;
   return data;
-}
-
-async function getCurrentBalance(userId) {
-  const { data, error } = await supabaseAdmin
-    .from('user_profiles')
-    .select('current_balance')
-    .eq('user_id', userId)
-    .single();
-  if (error) return 0;
-  return Number(data.current_balance);
 }
 
 async function getBalance(userId) {
@@ -68,11 +56,11 @@ async function getSubscriptions(userId) {
 }
 
 async function buildAppData(userType, userId = null) {
-  const [transactions, subscriptions] = await Promise.all([
+  const [transactions, subscriptions, currentBalance] = await Promise.all([
     getTransactions(userType),
     getSubscriptions(userId),
+    getBalance(userId),
   ]);
-  const seedMeta = getSeedMeta(userType);
   return {
     transactions,
     subscriptions,
@@ -83,11 +71,8 @@ async function buildAppData(userType, userId = null) {
 
 // GET /finance/summary
 router.get('/summary', async (req, res) => {
-  const appData = await buildAppData(req.userId, req.userType);
+  const appData = await buildAppData(req.userType, req.userId);
   const summary = calculateSummaryFromAppData(appData);
-  // #region agent log
-  debugLog('finance.js:GET/summary', 'summary response', { reqUserId: req.userId ? String(req.userId).slice(0, 8) : null, summaryBalance: summary.balance }, 'H2,H5');
-  // #endregion
   res.json({ ...summary, labels: getLabels(req.userType) });
 });
 
@@ -112,9 +97,6 @@ router.put('/settings', requireAuth, async (req, res) => {
       { user_id: req.userId, current_balance: value, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     );
-  // #region agent log
-  debugLog('finance.js:PUT/settings', 'settings upsert', { userId: req.userId ? String(req.userId).slice(0, 8) : null, value, upsertError: error ? error.message : null }, 'H1,H2');
-  // #endregion
   if (error) {
     const msg = error.message?.includes('user_settings') && error.message?.includes('schema cache')
       ? 'Database setup required: run the migration in supabase/migrations/001_user_settings_and_transactions_user_id.sql (see supabase/README.md).'
@@ -136,7 +118,7 @@ router.get('/transactions', async (req, res) => {
 // GET /finance/forecast?days=30
 router.get('/forecast', async (req, res) => {
   const days = Math.min(parseInt(req.query.days, 10) || 30, 90);
-  const appData = await buildAppData(req.userId, req.userType);
+  const appData = await buildAppData(req.userType, req.userId);
   const forecast = generateForecastFromAppData(appData, days);
   res.json({ forecast, days });
 });
@@ -150,14 +132,14 @@ router.get('/recurring', async (req, res) => {
 
 // GET /finance/breakdown
 router.get('/breakdown', async (req, res) => {
-  const appData = await buildAppData(req.userId, req.userType);
+  const appData = await buildAppData(req.userType, req.userId);
   const breakdown = getExpenseBreakdownFromAppData(appData);
   res.json({ breakdown });
 });
 
 // GET /finance/runway
 router.get('/runway', async (req, res) => {
-  const appData = await buildAppData(req.userId, req.userType);
+  const appData = await buildAppData(req.userType, req.userId);
   const { days, monthlyBurn, trueAvailable } = getCashRunwayFromAppData(appData);
   const status = days > 60 ? 'safe' : days > 30 ? 'warning' : 'critical';
   res.json({ days, status, monthlyBurn, trueAvailable });
@@ -165,7 +147,7 @@ router.get('/runway', async (req, res) => {
 
 // GET /finance/insight
 router.get('/insight', async (req, res) => {
-  const appData = await buildAppData(req.userId, req.userType);
+  const appData = await buildAppData(req.userType, req.userId);
   const summary = calculateSummaryFromAppData(appData);
   const forecast = generateForecastFromAppData(appData, 30);
   const labels = getLabels(req.userType);
