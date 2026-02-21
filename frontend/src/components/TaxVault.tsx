@@ -22,7 +22,7 @@ export function TaxVault({ estimatedTax, balance }: TaxVaultProps) {
             style={{ width: `${taxPercent}%` }}
           />
           <div className="absolute inset-0 flex items-center justify-between px-4">
-            <span className="text-xs font-semibold text-risk-foreground relative z-10">
+            <span className="text-xs font-semibold text-secondary-foreground relative z-10">
               Tax Reserved
             </span>
             <span className="text-xs font-semibold text-secondary-foreground relative z-10">

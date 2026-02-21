@@ -96,6 +96,11 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Finance status muted backgrounds – dark theme (keep green/amber/red tint) */
+    --safe-muted: 152 30% 18%;
+    --warning-muted: 38 40% 20%;
+    --risk-muted: 0 40% 22%;
   }
 }
 
