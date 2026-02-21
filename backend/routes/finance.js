@@ -48,8 +48,9 @@ async function fetchPlaidTransactions(accessToken) {
 }
 
 // Returns transactions from Plaid if the user has connected their bank,
-// otherwise falls back to the shared seed data in Supabase.
-async function getTransactions(userType, userId = null) {
+// otherwise returns only transactions belonging to this user (empty for new users).
+// Seed data is never shown to authenticated users who haven't connected a bank.
+async function getTransactions(_userType, userId = null) {
   if (userId) {
     const { data: profile } = await supabaseAdmin
       .from('user_profiles')
@@ -60,15 +61,18 @@ async function getTransactions(userType, userId = null) {
     if (profile?.plaid_access_token) {
       return fetchPlaidTransactions(profile.plaid_access_token);
     }
+
+    // No bank connected — return only this user's own transactions (empty for new users)
+    const { data, error } = await supabaseAdmin
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId);
+    if (error) throw error;
+    return data ?? [];
   }
 
-  // Fall back to seed data
-  const { data, error } = await supabaseAdmin
-    .from('transactions')
-    .select('*')
-    .eq('user_type', userType);
-  if (error) throw error;
-  return data;
+  // No userId (should not happen given requireAuth, but guard anyway)
+  return [];
 }
 
 async function getBalance(userId) {
