@@ -18,7 +18,7 @@ import { AIInsightPanel } from "@/components/AIInsightPanel";
 import { SavingsStream } from "@/components/SavingsStream";
 import { AffordabilityAdvisor } from "@/components/AffordabilityAdvisor";
 import { getRuleBasedSavings } from "@/lib/savingsHeuristics";
-import type { AppData } from "@/lib/types";
+import type { AppData, CFOInsightsSnapshot } from "@/lib/types";
 import type { AffordabilityInput } from "@/utils/buildAffordabilityPrompt";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Landmark, Building2, CheckCircle2, Loader2 } from "lucide-react";
+import { Landmark, Building2, CheckCircle2, Loader2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -76,14 +76,40 @@ const Index = () => {
     queryFn: () => api.runway(userType, token),
   });
 
-  const { data: insightData } = useQuery({
-    queryKey: ["insight", userType],
-    queryFn: () => api.insight(userType, token),
-  });
-
   const { data: subscriptionsData } = useQuery({
     queryKey: ["subscriptions"],
     queryFn: () => api.subscriptions.list(token),
+  });
+
+  const cfoInsightsSnapshot = useMemo((): CFOInsightsSnapshot | null => {
+    if (!summaryData || !runwayData) return null;
+    return {
+      summary: {
+        balance: summaryData.balance ?? 0,
+        estimatedTax: summaryData.estimatedTax ?? 0,
+        trueAvailable: summaryData.trueAvailable ?? 0,
+        recurringTotal: summaryData.recurringTotal ?? 0,
+        riskRatio: summaryData.riskRatio ?? 0,
+      },
+      runway: {
+        days: runwayData.days ?? 0,
+        status: runwayData.status ?? "unknown",
+        monthlyBurn: runwayData.monthlyBurn ?? 0,
+      },
+      forecast: forecastData?.forecast ?? [],
+      breakdown: breakdownData?.breakdown ?? [],
+      transactions: transactionsData?.transactions ?? [],
+      recurring: recurringData?.recurring ?? [],
+      subscriptions: subscriptionsData?.subscriptions ?? [],
+    };
+  }, [summaryData, runwayData, forecastData, breakdownData, transactionsData, recurringData, subscriptionsData]);
+
+  const { data: cfoInsightsData, isLoading: cfoInsightsLoading, isError: cfoInsightsError } = useQuery({
+    queryKey: ["cfo-insights", userType],
+    queryFn: () => api.cfo.insights({ financialSnapshot: cfoInsightsSnapshot!, userType }, token),
+    enabled: !!cfoInsightsSnapshot,
+    staleTime: 5 * 60_000,
+    retry: 1,
   });
 
   const { data: savingsData } = useQuery({
@@ -240,6 +266,14 @@ const Index = () => {
                 placeholder='Ask PocketCFO… e.g. "Can I afford a dog?" or "Can I afford a €2,500/month hire?"'
                 className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
               />
+              <button
+                type="button"
+                onClick={() => setAffordabilityOpen(true)}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Open chat
+              </button>
             </form>
           </div>
         </section>
@@ -348,7 +382,11 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <TaxVault estimatedTax={summary.estimatedTax} balance={summary.balance} />
           <CashRunway days={runwayData?.days ?? 0} />
-          <AIInsightPanel insightText={insightData?.insight ?? "Loading insight..."} />
+          <AIInsightPanel
+            insights={cfoInsightsData?.insights ?? []}
+            isLoading={cfoInsightsLoading}
+            isError={cfoInsightsError}
+          />
         </div>
 
         {/* Savings & Optimizations – below Tax Vault / Runway */}

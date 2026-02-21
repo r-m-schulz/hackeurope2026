@@ -6,6 +6,7 @@ const supabase = require('../supabaseClient');
 const { getTaxConfig } = require('../lib/tax-config');
 const { parseIntent, computeCFOAnswer, getRuleBasedSavings, formatAnswerText } = require('../lib/cfo-engine');
 const { SYSTEM_PROMPT, buildUserMessage } = require('../lib/buildAffordabilityPrompt');
+const { CFO_INSIGHTS_SYSTEM_PROMPT, buildCFOInsightsUserMessage } = require('../lib/buildCFOInsightsPrompt');
 
 function validateUserTypeOptional(req, res, next) {
   const userType = req.query.user_type || req.body?.user_type;
@@ -231,6 +232,80 @@ router.post('/affordability', async (req, res) => {
   } catch (err) {
     console.error('CFO affordability error', err);
     res.status(500).json({ error: err.message || 'Affordability request failed.' });
+  }
+});
+
+// POST /cfo/insights — AI-powered CFO insights (Groq)
+// Body: { financialSnapshot: { summary, runway, forecast, breakdown, transactions, recurring, subscriptions }, userType? }
+router.post('/insights', async (req, res) => {
+  try {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'CFO Insights not configured (GROQ_API_KEY missing).' });
+    }
+    const { financialSnapshot, userType } = req.body;
+    if (!financialSnapshot || typeof financialSnapshot !== 'object') {
+      return res.status(400).json({ error: 'financialSnapshot is required.' });
+    }
+
+    const resolvedUserType = userType || req.userType || 'sme';
+    const userMessage = buildCFOInsightsUserMessage({ ...financialSnapshot, userType: resolvedUserType });
+
+    console.log('[Groq insights] building insights for userType:', resolvedUserType);
+
+    const client = new Groq({ apiKey });
+    const completion = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role: 'system', content: CFO_INSIGHTS_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.3,
+      max_tokens: 800,
+      response_format: { type: 'json_object' },
+    });
+
+    const raw = completion.choices?.[0]?.message?.content?.trim() || '';
+    console.log('[Groq insights] raw response:', raw.slice(0, 400));
+
+    let insights;
+    try {
+      // response_format: json_object wraps the array in an object, e.g. {"insights":[...]}
+      // Fall back to finding a bare array if needed
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        insights = parsed;
+      } else if (Array.isArray(parsed.insights)) {
+        insights = parsed.insights;
+      } else {
+        // last resort: find first array value in the object
+        const arrayVal = Object.values(parsed).find(v => Array.isArray(v));
+        if (arrayVal) {
+          insights = arrayVal;
+        } else {
+          throw new Error('No array found in JSON response');
+        }
+      }
+    } catch (_) {
+      console.error('[Groq insights] JSON parse failed, raw:', raw.slice(0, 500));
+      return res.status(502).json({ error: 'AI response was not valid JSON.', raw: raw.slice(0, 500) });
+    }
+
+    // Sanitise each insight
+    const validSeverities = ['info', 'warning', 'critical'];
+    const sanitised = insights
+      .filter(i => i && typeof i.text === 'string' && i.text.trim())
+      .map((i, idx) => ({
+        id: typeof i.id === 'string' ? i.id : `insight-${idx}`,
+        text: i.text.trim(),
+        severity: validSeverities.includes(i.severity) ? i.severity : 'info',
+        category: typeof i.category === 'string' ? i.category : 'general',
+      }));
+
+    res.json({ insights: sanitised });
+  } catch (err) {
+    console.error('CFO insights error', err);
+    res.status(500).json({ error: err.message || 'CFO insights failed.' });
   }
 });
 

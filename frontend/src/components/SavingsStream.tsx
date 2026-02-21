@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TrendingDown, Check, X, Eye } from "lucide-react";
+import { TrendingDown, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/finance-engine";
 import type { CFOSavingsItem } from "@/lib/types";
@@ -8,14 +8,12 @@ interface SavingsStreamProps {
   items: CFOSavingsItem[];
   onIgnore?: (id: string) => void;
   onMarkDone?: (id: string) => void;
-  onReview?: (id: string) => void;
 }
 
 export function SavingsStream({
   items,
   onIgnore,
   onMarkDone,
-  onReview,
 }: SavingsStreamProps) {
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const visible = items.filter((i) => !hiddenIds.has(i.id));
@@ -34,6 +32,7 @@ export function SavingsStream({
       <p className="text-xs text-muted-foreground">
         Proactive suggestions from your CFO. Informational only; verify with a professional.
       </p>
+      <div className="overflow-y-auto max-h-[26rem] pr-1 scrollbar-thin">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {visible.map((item) => (
           <div
@@ -64,10 +63,10 @@ export function SavingsStream({
                 variant="default"
                 size="sm"
                 className="rounded-lg text-xs"
-                onClick={() => onMarkDone?.(item.id)}
+                onClick={() => { handleIgnore(item.id); onMarkDone?.(item.id); }}
               >
                 <Check className="h-3.5 w-3.5 mr-1" />
-                {item.ctaPrimary}
+                {item.ctaPrimary === "Review" ? "Reviewed" : item.ctaPrimary}
               </Button>
               <Button
                 variant="outline"
@@ -78,20 +77,10 @@ export function SavingsStream({
                 <X className="h-3.5 w-3.5 mr-1" />
                 {item.ctaSecondary}
               </Button>
-              {item.ctaPrimary === "Review" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-lg text-xs"
-                  onClick={() => onReview?.(item.id)}
-                >
-                  <Eye className="h-3.5 w-3.5 mr-1" />
-                  Review
-                </Button>
-              )}
             </div>
           </div>
         ))}
+      </div>
       </div>
       {visible.length === 0 && (
         <p className="text-sm text-muted-foreground py-6 text-center">
