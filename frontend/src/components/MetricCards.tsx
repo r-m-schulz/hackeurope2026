@@ -6,8 +6,15 @@ interface MetricCardsProps {
   summary: FinancialSummary;
 }
 
+const LONG_NUMBER_LENGTH = 12;
+
 export function MetricCards({ summary }: MetricCardsProps) {
   const riskLevel = getRiskLevel(summary.riskRatio);
+
+  const balanceStr = formatCurrency(summary.balance);
+  const taxStr = formatCurrency(summary.estimatedTax);
+  const recurringStr = formatCurrency(summary.recurringTotal);
+  const trueAvailableStr = formatCurrency(summary.trueAvailable);
 
   const riskColors = {
     safe: "border-safe text-safe",
@@ -29,7 +36,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
           <span className="text-sm font-medium text-muted-foreground">Bank Balance</span>
           <Landmark className="h-5 w-5 text-muted-foreground" />
         </div>
-        <p className="metric-value text-foreground">{formatCurrency(summary.balance)}</p>
+        <p className={`metric-value text-foreground w-full ${balanceStr.length > LONG_NUMBER_LENGTH ? "metric-value-long" : ""}`}>{balanceStr}</p>
         <p className="text-xs text-muted-foreground mt-2">Current account balance</p>
       </div>
 
@@ -39,7 +46,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
           <span className="text-sm font-medium text-muted-foreground">Estimated Tax</span>
           <Receipt className="h-5 w-5 text-muted-foreground" />
         </div>
-        <p className="metric-value text-risk">{formatCurrency(summary.estimatedTax)}</p>
+        <p className={`metric-value text-risk w-full ${taxStr.length > LONG_NUMBER_LENGTH ? "metric-value-long" : ""}`}>{taxStr}</p>
         <div className="mt-2 space-y-1">
           <p className="text-xs text-muted-foreground">VAT: {formatCurrency(summary.estimatedVAT)}</p>
           <p className="text-xs text-muted-foreground">Corp: {formatCurrency(summary.estimatedCorpTax)}</p>
@@ -53,7 +60,7 @@ export function MetricCards({ summary }: MetricCardsProps) {
           <span className="text-sm font-medium text-muted-foreground">Recurring (30d)</span>
           <RefreshCw className="h-5 w-5 text-muted-foreground" />
         </div>
-        <p className="metric-value text-warning">{formatCurrency(summary.recurringTotal)}</p>
+        <p className={`metric-value text-warning w-full ${recurringStr.length > LONG_NUMBER_LENGTH ? "metric-value-long" : ""}`}>{recurringStr}</p>
         <p className="text-xs text-muted-foreground mt-2">Upcoming recurring payments</p>
       </div>
 
@@ -63,8 +70,8 @@ export function MetricCards({ summary }: MetricCardsProps) {
           <span className="text-sm font-semibold opacity-80">True Available Cash</span>
           <ShieldCheck className="h-6 w-6" />
         </div>
-        <p className={`metric-value-hero ${riskColors[riskLevel]}`}>
-          {formatCurrency(summary.trueAvailable)}
+        <p className={`metric-value-hero ${riskColors[riskLevel]} w-full ${trueAvailableStr.length > LONG_NUMBER_LENGTH ? "metric-value-hero-long" : ""}`}>
+          {trueAvailableStr}
         </p>
         <div className="flex items-center gap-1.5 mt-3">
           {summary.trueAvailable >= 0 ? (

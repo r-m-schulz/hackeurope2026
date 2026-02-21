@@ -127,21 +127,33 @@
 
 @layer components {
   .metric-value {
-    @apply text-4xl font-bold tracking-tight leading-none;
+    @apply font-bold tracking-tight leading-none whitespace-nowrap min-w-0 max-w-full overflow-hidden;
+    font-size: clamp(0.875rem, 11cqi, 2.25rem);
     font-variant-numeric: tabular-nums;
   }
 
+  .metric-value.metric-value-long {
+    font-size: clamp(0.5rem, 6cqi, 1.25rem);
+  }
+
   .metric-value-hero {
-    @apply text-5xl md:text-6xl font-black tracking-tighter leading-none;
+    @apply font-black tracking-tighter leading-none whitespace-nowrap min-w-0 max-w-full overflow-hidden;
+    font-size: clamp(0.875rem, 13cqi, 3.5rem);
     font-variant-numeric: tabular-nums;
+  }
+
+  .metric-value-hero.metric-value-hero-long {
+    font-size: clamp(0.5rem, 6cqi, 1.5rem);
   }
 
   .card-metric {
     @apply rounded-xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md;
+    container-type: inline-size;
   }
 
   .card-hero {
     @apply rounded-2xl border-2 p-8 shadow-lg transition-all hover:shadow-xl;
+    container-type: inline-size;
   }
 }
 

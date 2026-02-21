@@ -102,7 +102,7 @@ export function RecurringPayments({ subscriptions, onAdd, onDelete }: RecurringP
         </Dialog>
       </div>
 
-      <div className="space-y-2 max-h-[240px] overflow-y-auto">
+      <div className="space-y-2 min-h-0 max-h-[min(400px,60vh)] overflow-y-auto">
         {subscriptions.length === 0 && (
           <p className="text-sm text-muted-foreground py-4 text-center">No manual subscriptions. Add one to see it in forecast and expense breakdown.</p>
         )}
