@@ -18,9 +18,11 @@ export interface RecurringPayment {
 export interface FinancialSummary {
   balance: number;
   estimatedTax: number;
-  estimatedVAT: number;
-  estimatedCorpTax: number;
-  estimatedPRSI: number;
+  estimatedVAT: number | null;
+  estimatedCorpTax: number | null;
+  estimatedPRSI: number | null;
+  estimatedIncomeTax?: number | null;
+  estimatedUSC?: number | null;
   recurringTotal: number;
   trueAvailable: number;
   riskRatio: number;

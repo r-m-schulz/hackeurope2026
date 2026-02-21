@@ -48,9 +48,21 @@ export function MetricCards({ summary }: MetricCardsProps) {
         </div>
         <p className={`metric-value text-risk w-full ${taxStr.length > LONG_NUMBER_LENGTH ? "metric-value-long" : ""}`}>{taxStr}</p>
         <div className="mt-2 space-y-1">
-          <p className="text-xs text-muted-foreground">VAT: {formatCurrency(summary.estimatedVAT)}</p>
-          <p className="text-xs text-muted-foreground">Corp: {formatCurrency(summary.estimatedCorpTax)}</p>
-          <p className="text-xs text-muted-foreground">PRSI: {formatCurrency(summary.estimatedPRSI)}</p>
+          {summary.estimatedVAT != null && (
+            <p className="text-xs text-muted-foreground">VAT: {formatCurrency(summary.estimatedVAT)}</p>
+          )}
+          {summary.estimatedCorpTax != null && (
+            <p className="text-xs text-muted-foreground">Corp: {formatCurrency(summary.estimatedCorpTax)}</p>
+          )}
+          {summary.estimatedIncomeTax != null && (
+            <p className="text-xs text-muted-foreground">Income Tax: {formatCurrency(summary.estimatedIncomeTax)}</p>
+          )}
+          {summary.estimatedUSC != null && (
+            <p className="text-xs text-muted-foreground">USC: {formatCurrency(summary.estimatedUSC)}</p>
+          )}
+          {summary.estimatedPRSI != null && (
+            <p className="text-xs text-muted-foreground">PRSI: {formatCurrency(summary.estimatedPRSI)}</p>
+          )}
         </div>
       </div>
 
