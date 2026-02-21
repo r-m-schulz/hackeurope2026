@@ -21,7 +21,7 @@ const Index = () => {
 
   const { data: summaryData } = useQuery({
     queryKey: ["summary", userType],
-    queryFn: () => api.summary(userType),
+    queryFn: () => api.summary(userType, token),
   });
 
   const { data: transactionsData } = useQuery({
@@ -31,7 +31,7 @@ const Index = () => {
 
   const { data: forecastData } = useQuery({
     queryKey: ["forecast", userType],
-    queryFn: () => api.forecast(userType),
+    queryFn: () => api.forecast(userType, token),
   });
 
   const { data: recurringData } = useQuery({
@@ -41,17 +41,17 @@ const Index = () => {
 
   const { data: breakdownData } = useQuery({
     queryKey: ["breakdown", userType],
-    queryFn: () => api.breakdown(userType),
+    queryFn: () => api.breakdown(userType, token),
   });
 
   const { data: runwayData } = useQuery({
     queryKey: ["runway", userType],
-    queryFn: () => api.runway(userType),
+    queryFn: () => api.runway(userType, token),
   });
 
   const { data: insightData } = useQuery({
     queryKey: ["insight", userType],
-    queryFn: () => api.insight(userType),
+    queryFn: () => api.insight(userType, token),
   });
 
   const { data: subscriptionsData } = useQuery({

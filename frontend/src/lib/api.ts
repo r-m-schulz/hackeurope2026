@@ -38,26 +38,26 @@ async function del<T>(path: string, token: string): Promise<T> {
 }
 
 export const api = {
-  summary: (userType: UserType) =>
-    get<FinancialSummary & { labels: { primaryMetric: string; taxReserve: string; thirdMetric: string } }>("/finance/summary", { user_type: userType }),
+  summary: (userType: UserType, token: string) =>
+    get<FinancialSummary & { labels: { primaryMetric: string; taxReserve: string; thirdMetric: string } }>("/finance/summary", { user_type: userType }, token),
 
   transactions: (userType: UserType) =>
     get<{ transactions: Transaction[]; count: number }>("/finance/transactions", { user_type: userType }),
 
-  forecast: (userType: UserType) =>
-    get<{ forecast: ForecastDay[]; days: number }>("/finance/forecast", { user_type: userType }),
+  forecast: (userType: UserType, token: string) =>
+    get<{ forecast: ForecastDay[]; days: number }>("/finance/forecast", { user_type: userType }, token),
 
   recurring: (userType: UserType) =>
     get<{ recurring: RecurringPayment[]; count: number }>("/finance/recurring", { user_type: userType }),
 
-  breakdown: (userType: UserType) =>
-    get<{ breakdown: ExpenseBreakdown[] }>("/finance/breakdown", { user_type: userType }),
+  breakdown: (userType: UserType, token: string) =>
+    get<{ breakdown: ExpenseBreakdown[] }>("/finance/breakdown", { user_type: userType }, token),
 
-  runway: (userType: UserType) =>
-    get<{ days: number; status: string; monthlyBurn: number; trueAvailable: number }>("/finance/runway", { user_type: userType }),
+  runway: (userType: UserType, token: string) =>
+    get<{ days: number; status: string; monthlyBurn: number; trueAvailable: number }>("/finance/runway", { user_type: userType }, token),
 
-  insight: (userType: UserType) =>
-    get<{ insight: string; tone: string; severity: string }>("/finance/insight", { user_type: userType }),
+  insight: (userType: UserType, token: string) =>
+    get<{ insight: string; tone: string; severity: string }>("/finance/insight", { user_type: userType }, token),
 
   subscriptions: {
     list: (token: string) =>

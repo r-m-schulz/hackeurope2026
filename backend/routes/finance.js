@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabaseAdmin = require('../supabaseAdmin');
+const supabase = require('../supabaseClient');
 const { getTaxConfig, getLabels, validateUserType } = require('../lib/tax-config');
 const {
   detectRecurringPayments,
@@ -12,6 +13,18 @@ const {
 } = require('../lib/finance-engine');
 
 router.use(validateUserType);
+
+// Optional auth — extracts userId from Bearer token if present, never blocks
+async function optionalAuth(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token) {
+    const { data } = await supabase.auth.getUser(token);
+    if (data?.user) req.userId = data.user.id;
+  }
+  next();
+}
+
+router.use(optionalAuth);
 
 async function getTransactions(userType) {
   const { data, error } = await supabaseAdmin
