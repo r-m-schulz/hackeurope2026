@@ -164,11 +164,11 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                   </span>
                 </td>
                 <td className="px-6 py-3 text-right font-mono font-medium">
-                  <span className={`inline-flex items-center gap-1 ${t.type === "income" ? "text-safe" : "text-foreground"}`}>
+                  <span className={`inline-flex items-center gap-1 ${t.type === "income" ? "text-safe" : "text-risk"}`}>
                     {t.type === "income" ? (
                       <ArrowUpRight className="h-3.5 w-3.5" />
                     ) : (
-                      <ArrowDownRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      <ArrowDownRight className="h-3.5 w-3.5" />
                     )}
                     {t.type === "income" ? "+" : "−"}
                     {formatCurrency(t.amount)}
