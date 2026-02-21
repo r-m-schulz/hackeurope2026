@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
@@ -12,6 +13,10 @@ import { CashRunway } from "@/components/CashRunway";
 import { RecurringPaymentsList } from "@/components/RecurringPaymentsList";
 import { RecurringPayments } from "@/components/RecurringPayments";
 import { AIInsightPanel } from "@/components/AIInsightPanel";
+import { CFOCommandBar } from "@/components/CFOCommandBar";
+import { SavingsStream } from "@/components/SavingsStream";
+import { getRuleBasedSavings } from "@/lib/savingsHeuristics";
+import type { AppData } from "@/lib/types";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -59,6 +64,33 @@ const Index = () => {
     queryFn: () => api.subscriptions.list(token),
   });
 
+  const { data: savingsData } = useQuery({
+    queryKey: ["cfo-savings", userType],
+    queryFn: () => api.cfo.savings(token, userType),
+    staleTime: 60_000,
+  });
+
+  const appData: AppData = useMemo(
+    () => ({
+      transactions: transactionsData?.transactions ?? [],
+      subscriptions: subscriptionsData?.subscriptions ?? [],
+      currentBalance: summaryData?.balance ?? 0,
+      taxConfig: { vatRate: 0.23, corpTaxRate: 0.125 },
+    }),
+    [
+      transactionsData?.transactions,
+      subscriptionsData?.subscriptions,
+      summaryData?.balance,
+    ]
+  );
+
+  const savingsItems = useMemo(() => {
+    const fromApi = savingsData?.items ?? [];
+    if (fromApi.length >= 4) return fromApi;
+    const fromRules = getRuleBasedSavings(appData, {});
+    return fromRules.length >= fromApi.length ? fromRules : fromApi;
+  }, [savingsData?.items, appData]);
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
     ["summary", "forecast", "breakdown", "runway", "insight"].forEach((key) =>
@@ -92,7 +124,11 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* CFO Command Bar – always at top */}
+        <section className="flex justify-center pt-2">
+          <CFOCommandBar appData={appData} userType={userType} />
+        </section>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -125,6 +161,11 @@ const Index = () => {
           <CashRunway days={runwayData?.days ?? 0} />
           <AIInsightPanel insightText={insightData?.insight ?? "Loading insight..."} />
         </div>
+
+        {/* Savings & Optimizations – below Tax Vault / Runway */}
+        <section className="rounded-2xl border border-border bg-card/50 p-6">
+          <SavingsStream items={savingsItems} />
+        </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RecurringPaymentsList payments={recurringData?.recurring ?? []} />

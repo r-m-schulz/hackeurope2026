@@ -110,10 +110,20 @@ export default {
             height: "0",
           },
         },
+        "cfo-expand": {
+          from: { opacity: "0", transform: "scale(0.98)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        "cfo-collapse": {
+          from: { opacity: "1", transform: "scale(1)" },
+          to: { opacity: "0", transform: "scale(0.98)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "cfo-expand": "cfo-expand 0.2s ease-out",
+        "cfo-collapse": "cfo-collapse 0.15s ease-out",
       },
     },
   },
