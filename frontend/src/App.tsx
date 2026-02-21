@@ -17,6 +17,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return isLoggedIn() ? <>{children}</> : <Navigate to="/" replace />;
 }
 
+// Component so isLoggedIn() is re-evaluated fresh on every navigation render
+function RootRoute() {
+  return isLoggedIn() ? <Index /> : <Landing />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -27,10 +32,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/about" element={<About />} />
-            <Route
-              path="/"
-              element={isLoggedIn() ? <Index /> : <Landing />}
-            />
+            <Route path="/" element={<RootRoute />} />
             <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
