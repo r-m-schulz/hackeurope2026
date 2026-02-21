@@ -4,13 +4,6 @@ const path = require('path');
 const router = express.Router();
 const supabaseAdmin = require('../supabaseAdmin');
 const supabase = require('../supabaseClient');
-const { requireAuth } = require('../lib/auth-middleware');
-
-const DEBUG_LOG_PATH = path.join(__dirname, '../../.cursor/debug-63f232.log');
-function debugLog(location, message, data, hypothesisId) {
-  const line = JSON.stringify({ sessionId: '63f232', location, message, data, timestamp: Date.now(), hypothesisId }) + '\n';
-  try { fs.appendFileSync(DEBUG_LOG_PATH, line); } catch (_) {}
-}
 const { getTaxConfig, getLabels, validateUserType } = require('../lib/tax-config');
 const {
   detectRecurringPayments,
@@ -21,50 +14,26 @@ const {
   getCashRunwayFromAppData,
 } = require('../lib/finance-engine');
 
-router.use(validateUserType);
+// All finance routes require auth. requireAuth sets req.userId and req.userType from JWT.
+router.use(requireAuth);
 
-// Optional auth — extracts userId from Bearer token if present, never blocks
-async function optionalAuth(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (token) {
-    const { data } = await supabase.auth.getUser(token);
-    if (data?.user) req.userId = data.user.id;
-  }
-  next();
+async function getTransactions(userType) {
+  const { data, error } = await supabaseAdmin
+    .from('transactions')
+    .select('*')
+    .eq('user_type', userType);
+  if (error) throw error;
+  return data;
 }
 
-router.use(optionalAuth);
-
-async function getTransactions(userType, userId = null) {
-  if (userId) {
-    try {
-      const { data, error } = await supabaseAdmin
-        .from('transactions')
-        .select('*')
-        .eq('user_id', userId);
-      if (error) return [];
-      return data || [];
-    } catch (_) {
-      return [];
-    }
-  }
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('transactions')
-      .select('*')
-      .eq('user_type', userType)
-      .is('user_id', null);
-    if (error) return [];
-    return data || [];
-  } catch (_) {
-    return [];
-  }
-}
-
-function getSeedMeta(userType) {
-  return userType === 'sme'
-    ? require('../data/seed-sme')
-    : require('../data/seed-individual');
+async function getCurrentBalance(userId) {
+  const { data, error } = await supabaseAdmin
+    .from('user_profiles')
+    .select('current_balance')
+    .eq('user_id', userId)
+    .single();
+  if (error) return 0;
+  return Number(data.current_balance);
 }
 
 async function getBalance(userId) {
@@ -83,14 +52,13 @@ async function getBalance(userId) {
 }
 
 async function getSubscriptions(userId) {
-  if (!userId) return [];
   const { data, error } = await supabaseAdmin
     .from('subscriptions')
     .select('*')
     .eq('user_id', userId);
   if (error) throw error;
   // Map DB column names to frontend shape
-  return (data || []).map(s => ({
+  return data.map(s => ({
     id: s.id,
     merchant: s.merchant,
     amount: Number(s.amount),
@@ -100,19 +68,11 @@ async function getSubscriptions(userId) {
 }
 
 async function buildAppData(userType, userId = null) {
-  const [transactions, subscriptions, storedBalance] = await Promise.all([
-    getTransactions(userType, userId),
+  const [transactions, subscriptions] = await Promise.all([
+    getTransactions(userType),
     getSubscriptions(userId),
-    userId ? getBalance(userId) : Promise.resolve(null),
   ]);
   const seedMeta = getSeedMeta(userType);
-  // Logged-in users: use stored balance only (no seed). New users see 0 until they set it.
-  const currentBalance = storedBalance !== null && storedBalance !== undefined
-    ? storedBalance
-    : (userId ? 0 : (seedMeta.currentBalance ?? 0));
-  // #region agent log
-  debugLog('finance.js:buildAppData', 'buildAppData result', { userId: userId ? String(userId).slice(0, 8) : null, storedBalance, seedBalance: seedMeta.currentBalance, currentBalance, transactionsCount: transactions.length }, 'H2,H3');
-  // #endregion
   return {
     transactions,
     subscriptions,
@@ -121,9 +81,9 @@ async function buildAppData(userType, userId = null) {
   };
 }
 
-// GET /finance/summary?user_type=sme|individual
+// GET /finance/summary
 router.get('/summary', async (req, res) => {
-  const appData = await buildAppData(req.userType, req.userId);
+  const appData = await buildAppData(req.userId, req.userType);
   const summary = calculateSummaryFromAppData(appData);
   // #region agent log
   debugLog('finance.js:GET/summary', 'summary response', { reqUserId: req.userId ? String(req.userId).slice(0, 8) : null, summaryBalance: summary.balance }, 'H2,H5');
@@ -164,48 +124,48 @@ router.put('/settings', requireAuth, async (req, res) => {
   res.json({ current_balance: value });
 });
 
-// GET /finance/transactions?user_type=sme|individual
+// GET /finance/transactions
 router.get('/transactions', async (req, res) => {
-  const transactions = await getTransactions(req.userType, req.userId);
+  const transactions = await getTransactions(req.userType);
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   res.json({ transactions: sorted, count: sorted.length });
 });
 
-// GET /finance/forecast?user_type=sme|individual&days=30
+// GET /finance/forecast?days=30
 router.get('/forecast', async (req, res) => {
   const days = Math.min(parseInt(req.query.days, 10) || 30, 90);
-  const appData = await buildAppData(req.userType, req.userId);
+  const appData = await buildAppData(req.userId, req.userType);
   const forecast = generateForecastFromAppData(appData, days);
   res.json({ forecast, days });
 });
 
-// GET /finance/recurring?user_type=sme|individual
+// GET /finance/recurring
 router.get('/recurring', async (req, res) => {
-  const transactions = await getTransactions(req.userType, req.userId);
+  const transactions = await getTransactions(req.userType);
   const recurring = detectRecurringPayments(transactions);
   res.json({ recurring, count: recurring.length });
 });
 
-// GET /finance/breakdown?user_type=sme|individual
+// GET /finance/breakdown
 router.get('/breakdown', async (req, res) => {
-  const appData = await buildAppData(req.userType, req.userId);
+  const appData = await buildAppData(req.userId, req.userType);
   const breakdown = getExpenseBreakdownFromAppData(appData);
   res.json({ breakdown });
 });
 
-// GET /finance/runway?user_type=sme|individual
+// GET /finance/runway
 router.get('/runway', async (req, res) => {
-  const appData = await buildAppData(req.userType, req.userId);
+  const appData = await buildAppData(req.userId, req.userType);
   const { days, monthlyBurn, trueAvailable } = getCashRunwayFromAppData(appData);
   const status = days > 60 ? 'safe' : days > 30 ? 'warning' : 'critical';
   res.json({ days, status, monthlyBurn, trueAvailable });
 });
 
-// GET /finance/insight?user_type=sme|individual
+// GET /finance/insight
 router.get('/insight', async (req, res) => {
-  const appData = await buildAppData(req.userType, req.userId);
+  const appData = await buildAppData(req.userId, req.userType);
   const summary = calculateSummaryFromAppData(appData);
   const forecast = generateForecastFromAppData(appData, 30);
   const labels = getLabels(req.userType);

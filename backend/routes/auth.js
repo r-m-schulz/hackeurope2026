@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const supabase = require("../supabaseClient");
+const supabaseAdmin = require("../supabaseAdmin");
 
 router.post("/signup", async (req, res) => {
   const { email, password, user_type } = req.body;
@@ -19,9 +20,16 @@ router.post("/signup", async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message });
 
+  const userId = data.user?.id;
+  if (userId) {
+    await supabaseAdmin
+      .from('user_profiles')
+      .insert({ user_id: userId, user_type, current_balance: 0 });
+  }
+
   res.json({
     message: "Signup successful",
-    user_id: data.user?.id,
+    user_id: userId,
     email: data.user?.email,
     user_type: data.user?.user_metadata?.user_type,
     access_token: data.session?.access_token,
