@@ -97,37 +97,39 @@ export function RecurringPayments({ subscriptions, onAdd, onDelete }: Props) {
                 </Dialog>
             </CardHeader>
             <CardContent className="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="border-b-0 hover:bg-transparent">
-                            <TableHead className="pl-6">Merchant</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Next Due Date</TableHead>
-                            <TableHead>Frequency</TableHead>
-                            <TableHead className="pr-6 text-right">Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {subscriptions.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">No recurring payments</TableCell>
+                <div className="max-h-[250px] overflow-y-auto relative">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-card z-10 shadow-sm">
+                            <TableRow className="border-b-0 hover:bg-transparent">
+                                <TableHead className="pl-6 bg-card">Merchant</TableHead>
+                                <TableHead className="bg-card">Amount</TableHead>
+                                <TableHead className="bg-card">Next Due Date</TableHead>
+                                <TableHead className="bg-card">Frequency</TableHead>
+                                <TableHead className="pr-6 text-right bg-card">Action</TableHead>
                             </TableRow>
-                        )}
-                        {subscriptions.map((sub) => (
-                            <TableRow key={sub.id} className="border-b-0">
-                                <TableCell className="font-medium pl-6">{sub.merchant}</TableCell>
-                                <TableCell>${sub.amount.toLocaleString()}</TableCell>
-                                <TableCell>{format(new Date(sub.nextDueDate), 'MMM dd, yyyy')}</TableCell>
-                                <TableCell className="capitalize">{sub.frequency}</TableCell>
-                                <TableCell className="pr-6 text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => onDelete(sub.id)} className="text-muted-foreground hover:text-red-500 rounded-full">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {subscriptions.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">No recurring payments</TableCell>
+                                </TableRow>
+                            )}
+                            {subscriptions.map((sub) => (
+                                <TableRow key={sub.id} className="border-b-0 h-[53px]">
+                                    <TableCell className="font-medium pl-6">{sub.merchant}</TableCell>
+                                    <TableCell>${sub.amount.toLocaleString()}</TableCell>
+                                    <TableCell>{format(new Date(sub.nextDueDate), 'MMM dd, yyyy')}</TableCell>
+                                    <TableCell className="capitalize">{sub.frequency}</TableCell>
+                                    <TableCell className="pr-6 text-right">
+                                        <Button variant="ghost" size="icon" onClick={() => onDelete(sub.id)} className="text-muted-foreground hover:text-red-500 rounded-full">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
             </CardContent>
         </Card>
     );

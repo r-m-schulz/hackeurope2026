@@ -7,10 +7,8 @@ export function calculateEstimatedTax(incomeTransAmount: number, appData: AppDat
     const estimatedCorpTax = incomeTransAmount * appData.taxConfig.corpTaxRate;
     const totalTaxLiability = estimatedVat + estimatedCorpTax;
 
-    // They can reserve a custom percentage. Default is just the liability
-    const vaultAmount = customReservePercent > 0
-        ? incomeTransAmount * (customReservePercent / 100)
-        : totalTaxLiability;
+    // They can reserve a custom percentage.
+    const vaultAmount = incomeTransAmount * (customReservePercent / 100);
 
     return { estimatedVat, estimatedCorpTax, totalTaxLiability, vaultAmount };
 }
@@ -80,4 +78,35 @@ export function generateAIInsight(appData: AppData, forecast: DayForecast[], tax
     }
 
     return `Your cash flow looks stable. No shortfalls predicted in the next 30 days.`;
+}
+
+export interface CategoryTotal {
+    name: string;
+    value: number;
+}
+
+export function getExpenseBreakdown(appData: AppData): CategoryTotal[] {
+    const expenses: Record<string, number> = {};
+
+    // 1. Transactions
+    appData.transactions.forEach(t => {
+        if (t.type === 'Expense') {
+            expenses[t.category] = (expenses[t.category] || 0) + t.amount;
+        }
+    });
+
+    // 2. Subscriptions
+    appData.subscriptions.forEach(sub => {
+        // Treat as "Subscriptions" category, or break down further, let's group for clarity
+        expenses['Subscriptions'] = (expenses['Subscriptions'] || 0) + sub.amount;
+    });
+
+    // 3. Estimated Tax
+    const totalIncome = appData.transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
+    const tax = calculateEstimatedTax(totalIncome, appData).totalTaxLiability;
+    expenses['Estimated Tax'] = tax;
+
+    return Object.entries(expenses)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value); // Sort highest first
 }

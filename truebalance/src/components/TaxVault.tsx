@@ -15,7 +15,8 @@ export function TaxVault({ appData }: { appData: AppData }) {
     const totalIncome = appData.transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
     const { totalTaxLiability, vaultAmount } = calculateEstimatedTax(totalIncome, appData, reservePercent);
 
-    const progressPercent = Math.min(100, Math.max(0, (vaultAmount / totalTaxLiability) * 100)) || 0;
+    const rawProgressPercent = (vaultAmount / totalTaxLiability) * 100 || 0;
+    const progressPercent = Math.min(100, Math.max(0, rawProgressPercent));
 
     const handleMoveToVault = () => {
         setIsMoving(true);
@@ -61,7 +62,7 @@ export function TaxVault({ appData }: { appData: AppData }) {
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm text-muted-foreground">
                         <span>Reserve Progress</span>
-                        <span>{Math.round(progressPercent)}% of Liability</span>
+                        <span>{Math.round(rawProgressPercent)}% of Liability</span>
                     </div>
                     <Progress value={progressPercent} className="h-2" />
                 </div>

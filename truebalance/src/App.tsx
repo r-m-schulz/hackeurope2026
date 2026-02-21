@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { initialAppData } from './data/mockData';
 import type { Subscription } from './data/mockData';
-import { generateForecast, calculateEstimatedTax, generateAIInsight } from './utils/calculations';
+import { generateForecast, calculateEstimatedTax, generateAIInsight, getExpenseBreakdown } from './utils/calculations';
 import { TopSummary } from './components/TopSummary';
 import { CashForecastChart } from './components/CashForecastChart';
 import { RecurringPayments } from './components/RecurringPayments';
 import { TaxVault } from './components/TaxVault';
 import { TransactionsTable } from './components/TransactionsTable';
 import { AIInsightPanel } from './components/AIInsightPanel';
+import { ExpenseBreakdownChart } from './components/ExpenseBreakdownChart';
 import { Moon, Sun, LayoutDashboard, Settings, User } from 'lucide-react';
 import { Button } from './components/ui/button';
 
@@ -43,6 +44,7 @@ export default function App() {
   const totalIncome = appData.transactions.filter(t => t.type === 'Income').reduce((s, t) => s + t.amount, 0);
   const { totalTaxLiability } = calculateEstimatedTax(totalIncome, appData);
   const aiInsight = generateAIInsight(appData, forecast, totalTaxLiability);
+  const expenseBreakdown = getExpenseBreakdown(appData);
 
   return (
     <div className="min-h-screen bg-secondary/30 transition-colors duration-300 font-sans text-foreground">
@@ -91,17 +93,22 @@ export default function App() {
               <AIInsightPanel insightText={aiInsight} />
             </section>
             <section>
-              <TaxVault appData={appData} />
+              <ExpenseBreakdownChart data={expenseBreakdown} />
             </section>
             <section>
-              <RecurringPayments
-                subscriptions={appData.subscriptions}
-                onAdd={handleAddSubscription}
-                onDelete={handleDeleteSubscription}
-              />
+              <TaxVault appData={appData} />
             </section>
           </div>
         </div>
+
+        {/* Bottom Full-Width Section */}
+        <section>
+          <RecurringPayments
+            subscriptions={appData.subscriptions}
+            onAdd={handleAddSubscription}
+            onDelete={handleDeleteSubscription}
+          />
+        </section>
       </main>
     </div>
   );
