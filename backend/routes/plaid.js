@@ -48,4 +48,15 @@ router.post('/exchange-token', requireAuth, async (req, res) => {
   }
 });
 
+// GET /plaid/status — check if the current user has a bank connected
+router.get('/status', requireAuth, async (req, res) => {
+  const { data: profile } = await supabaseAdmin
+    .from('user_profiles')
+    .select('plaid_access_token')
+    .eq('user_id', req.userId)
+    .maybeSingle();
+
+  res.json({ connected: !!(profile?.plaid_access_token) });
+});
+
 module.exports = router;

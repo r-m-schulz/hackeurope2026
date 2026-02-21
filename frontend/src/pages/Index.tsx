@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { usePlaidLink } from "react-plaid-link";
 import { api } from "@/lib/api";
 import { getToken, getUserType, clearAuth } from "@/lib/auth";
 import { DashboardHeader } from "@/components/DashboardHeader";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Landmark } from "lucide-react";
+import { Landmark, Building2, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -108,6 +109,52 @@ const Index = () => {
     onSuccess: invalidateAll,
   });
 
+  // --- Plaid ---
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [connectingBank, setConnectingBank] = useState(false);
+
+  const { data: plaidStatus, refetch: refetchPlaidStatus } = useQuery({
+    queryKey: ["plaid-status"],
+    queryFn: () => api.plaid.status(token),
+  });
+
+  const { open: openPlaid, ready: plaidReady } = usePlaidLink({
+    token: linkToken ?? "",
+    onSuccess: async (public_token) => {
+      try {
+        await api.plaid.exchangeToken(public_token, token);
+        await refetchPlaidStatus();
+        invalidateAll();
+        toast.success("Bank connected! Loading your real transactions...");
+      } catch {
+        toast.error("Failed to connect bank. Please try again.");
+      } finally {
+        setLinkToken(null);
+        setConnectingBank(false);
+      }
+    },
+    onExit: () => {
+      setLinkToken(null);
+      setConnectingBank(false);
+    },
+  });
+
+  // Open Plaid modal as soon as the link token is ready
+  useEffect(() => {
+    if (linkToken && plaidReady) openPlaid();
+  }, [linkToken, plaidReady, openPlaid]);
+
+  async function handleConnectBank() {
+    setConnectingBank(true);
+    try {
+      const { link_token } = await api.plaid.createLinkToken(token);
+      setLinkToken(link_token);
+    } catch {
+      toast.error("Could not initialise bank connection. Please try again.");
+      setConnectingBank(false);
+    }
+  }
+
   function handleLogout() {
     clearAuth();
     queryClient.clear();
@@ -131,6 +178,29 @@ const Index = () => {
             <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary text-primary-foreground">
               {userType === "sme" ? "SME" : "Individual"}
             </span>
+
+            {plaidStatus?.connected ? (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Bank connected
+              </span>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                className="gap-2"
+                onClick={handleConnectBank}
+                disabled={connectingBank}
+              >
+                {connectingBank ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Building2 className="h-4 w-4" />
+                )}
+                {connectingBank ? "Connecting…" : "Connect your bank"}
+              </Button>
+            )}
+
             <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">

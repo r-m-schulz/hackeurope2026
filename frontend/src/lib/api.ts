@@ -91,6 +91,9 @@ export const api = {
   },
 
   plaid: {
+    status: (token: string) =>
+      get<{ connected: boolean }>("/plaid/status", undefined, token),
+
     createLinkToken: (token: string) =>
       post<{ link_token: string }>("/plaid/create-link-token", {}, token),
 
