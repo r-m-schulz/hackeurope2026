@@ -28,6 +28,19 @@ async function post<T>(path: string, body: unknown, token: string): Promise<T> {
   return res.json();
 }
 
+async function put<T>(path: string, body: unknown, token: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string })?.error || `API error ${res.status}`);
+  }
+  return res.json();
+}
+
 async function del<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     method: "DELETE",
@@ -38,17 +51,24 @@ async function del<T>(path: string, token: string): Promise<T> {
 }
 
 export const api = {
+  settings: {
+    get: (token: string, userType: UserType) =>
+      get<{ current_balance: number }>("/finance/settings", { user_type: userType }, token),
+    updateBalance: (current_balance: number, token: string, userType: UserType) =>
+      put<{ current_balance: number }>("/finance/settings", { current_balance, user_type: userType }, token),
+  },
+
   summary: (userType: UserType, token: string) =>
     get<FinancialSummary & { labels: { primaryMetric: string; taxReserve: string; thirdMetric: string } }>("/finance/summary", { user_type: userType }, token),
 
-  transactions: (userType: UserType) =>
-    get<{ transactions: Transaction[]; count: number }>("/finance/transactions", { user_type: userType }),
+  transactions: (userType: UserType, token?: string) =>
+    get<{ transactions: Transaction[]; count: number }>("/finance/transactions", { user_type: userType }, token),
 
   forecast: (userType: UserType, token: string) =>
     get<{ forecast: ForecastDay[]; days: number }>("/finance/forecast", { user_type: userType }, token),
 
-  recurring: (userType: UserType) =>
-    get<{ recurring: RecurringPayment[]; count: number }>("/finance/recurring", { user_type: userType }),
+  recurring: (userType: UserType, token?: string) =>
+    get<{ recurring: RecurringPayment[]; count: number }>("/finance/recurring", { user_type: userType }, token),
 
   breakdown: (userType: UserType, token: string) =>
     get<{ breakdown: ExpenseBreakdown[] }>("/finance/breakdown", { user_type: userType }, token),

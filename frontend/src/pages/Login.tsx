@@ -61,7 +61,7 @@ export default function Login() {
       if (!res.ok) throw new Error(data.error || "Something went wrong");
 
       saveAuth(data.access_token, data.user_type);
-      navigate("/");
+      navigate(tab === "signup" ? "/setup" : "/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -187,11 +187,10 @@ export default function Login() {
                   key={t}
                   type="button"
                   onClick={() => switchTab(t)}
-                  className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                    tab === t
+                  className={`flex-1 py-1.5 text-sm font-semibold rounded-lg transition-all duration-200 ${tab === t
                       ? "bg-white dark:bg-[#252525] text-[#0a0a0a] dark:text-white shadow-sm"
                       : "text-[#0a0a0a]/38 dark:text-white/30 hover:text-[#0a0a0a]/65 dark:hover:text-white/60"
-                  }`}
+                    }`}
                 >
                   {t === "login" ? "Log in" : "Sign up"}
                 </button>
@@ -268,11 +267,10 @@ export default function Login() {
                     ).map(({ value, label, sub, Icon }) => (
                       <label
                         key={value}
-                        className={`flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border cursor-pointer transition-all duration-150 ${
-                          userType === value
+                        className={`flex-1 flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border cursor-pointer transition-all duration-150 ${userType === value
                             ? "border-[#76b900]/65 bg-[#76b900]/10 text-[#76b900]"
                             : "border-[#0a0a0a]/10 dark:border-white/10 text-[#0a0a0a]/35 dark:text-white/30 hover:border-[#76b900]/35"
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -283,21 +281,19 @@ export default function Login() {
                           className="sr-only"
                         />
                         <Icon
-                          className={`h-[18px] w-[18px] ${
-                            userType === value
+                          className={`h-[18px] w-[18px] ${userType === value
                               ? "text-[#76b900]"
                               : "text-[#0a0a0a]/30 dark:text-white/25"
-                          }`}
+                            }`}
                         />
                         <span className="text-xs font-semibold leading-none">
                           {label}
                         </span>
                         <span
-                          className={`text-[10px] leading-none ${
-                            userType === value
+                          className={`text-[10px] leading-none ${userType === value
                               ? "text-[#76b900]/65"
                               : "text-[#0a0a0a]/28 dark:text-white/22"
-                          }`}
+                            }`}
                         >
                           {sub}
                         </span>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
@@ -12,12 +13,28 @@ import { CashRunway } from "@/components/CashRunway";
 import { RecurringPaymentsList } from "@/components/RecurringPaymentsList";
 import { RecurringPayments } from "@/components/RecurringPayments";
 import { AIInsightPanel } from "@/components/AIInsightPanel";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Landmark } from "lucide-react";
+import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const token = getToken()!;
   const userType = getUserType() ?? "sme";
+  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
+  const [balanceInput, setBalanceInput] = useState("");
 
   const { data: summaryData } = useQuery({
     queryKey: ["summary", userType],
@@ -26,7 +43,7 @@ const Index = () => {
 
   const { data: transactionsData } = useQuery({
     queryKey: ["transactions", userType],
-    queryFn: () => api.transactions(userType),
+    queryFn: () => api.transactions(userType, token),
   });
 
   const { data: forecastData } = useQuery({
@@ -36,7 +53,7 @@ const Index = () => {
 
   const { data: recurringData } = useQuery({
     queryKey: ["recurring", userType],
-    queryFn: () => api.recurring(userType),
+    queryFn: () => api.recurring(userType, token),
   });
 
   const { data: breakdownData } = useQuery({
@@ -61,10 +78,24 @@ const Index = () => {
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-    ["summary", "forecast", "breakdown", "runway", "insight"].forEach((key) =>
+    ["summary", "forecast", "breakdown", "runway", "insight", "transactions", "recurring"].forEach((key) =>
       queryClient.invalidateQueries({ queryKey: [key, userType] })
     );
   };
+
+  const updateBalanceMutation = useMutation({
+    mutationFn: (value: number) => api.settings.updateBalance(value, token, userType),
+    onSuccess: async (_data, value) => {
+      invalidateAll();
+      await queryClient.refetchQueries({ queryKey: ["summary", userType] });
+      setBalanceDialogOpen(false);
+      setBalanceInput("");
+      toast.success("Balance updated to €" + value.toLocaleString("en-IE"));
+    },
+    onError: (err: Error) => {
+      toast.error("Could not save balance: " + (err.message || "Please try again."));
+    },
+  });
 
   const addMutation = useMutation({
     mutationFn: (sub: { merchant: string; amount: number; nextDueDate: string; frequency: "monthly" | "weekly" }) =>
@@ -94,12 +125,64 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm text-muted-foreground">Account type:</span>
             <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary text-primary-foreground">
               {userType === "sme" ? "SME" : "Individual"}
             </span>
+            <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Landmark className="h-4 w-4" />
+                  Update balance
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[400px]">
+                <DialogHeader>
+                  <DialogTitle>Bank balance</DialogTitle>
+                  <DialogDescription>
+                    Set your current account balance. This is used for true available cash, forecast, and runway.
+                  </DialogDescription>
+                </DialogHeader>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const val = Number(balanceInput.replace(/,/g, ""));
+                    if (!Number.isNaN(val)) updateBalanceMutation.mutate(val);
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <Label htmlFor="balance">Current balance (€)</Label>
+                    <Input
+                      id="balance"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder={summary.balance.toLocaleString("en-IE")}
+                      value={balanceInput}
+                      onChange={(e) => setBalanceInput(e.target.value)}
+                      className="mt-1.5 font-mono"
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setBalanceDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={updateBalanceMutation.isPending || (balanceInput !== "" && Number.isNaN(Number(balanceInput.replace(/,/g, ""))))}
+                    >
+                      {updateBalanceMutation.isPending ? "Saving…" : "Save"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
           <button
             onClick={handleLogout}
