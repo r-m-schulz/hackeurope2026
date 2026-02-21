@@ -12,10 +12,16 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.use((req, _res, next) => {
+  console.log(`[request] ${req.method} ${req.path}`);
+  next();
+});
+
 app.use('/auth', require('./routes/auth'));
 app.use('/finance', require('./routes/finance'));
 app.use('/subscriptions', require('./routes/subscriptions'));
 app.use('/plaid', require('./routes/plaid'));
+app.use('/cfo', require('./routes/cfo'));
 
 app.get('/', (_req, res) => {
   res.json({ message: 'hackeurope2026 API' });

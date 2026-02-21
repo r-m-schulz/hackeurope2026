@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { BrainCircuit } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import { api } from "@/lib/api";
 import { getToken, getUserType, clearAuth } from "@/lib/auth";
@@ -14,6 +15,11 @@ import { CashRunway } from "@/components/CashRunway";
 import { RecurringPaymentsList } from "@/components/RecurringPaymentsList";
 import { RecurringPayments } from "@/components/RecurringPayments";
 import { AIInsightPanel } from "@/components/AIInsightPanel";
+import { SavingsStream } from "@/components/SavingsStream";
+import { AffordabilityAdvisor } from "@/components/AffordabilityAdvisor";
+import { getRuleBasedSavings } from "@/lib/savingsHeuristics";
+import type { AppData } from "@/lib/types";
+import type { AffordabilityInput } from "@/utils/buildAffordabilityPrompt";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +40,7 @@ const Index = () => {
   const queryClient = useQueryClient();
   const token = getToken()!;
   const userType = getUserType() ?? "sme";
+  const [affordabilityOpen, setAffordabilityOpen] = useState(false);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const [balanceInput, setBalanceInput] = useState("");
 
@@ -76,6 +83,33 @@ const Index = () => {
     queryKey: ["subscriptions"],
     queryFn: () => api.subscriptions.list(token),
   });
+
+  const { data: savingsData } = useQuery({
+    queryKey: ["cfo-savings", userType],
+    queryFn: () => api.cfo.savings(token, userType),
+    staleTime: 60_000,
+  });
+
+  const appData: AppData = useMemo(
+    () => ({
+      transactions: transactionsData?.transactions ?? [],
+      subscriptions: subscriptionsData?.subscriptions ?? [],
+      currentBalance: summaryData?.balance ?? 0,
+      taxConfig: { vatRate: 0.23, corpTaxRate: 0.125 },
+    }),
+    [
+      transactionsData?.transactions,
+      subscriptionsData?.subscriptions,
+      summaryData?.balance,
+    ]
+  );
+
+  const savingsItems = useMemo(() => {
+    const fromApi = savingsData?.items ?? [];
+    if (fromApi.length >= 4) return fromApi;
+    const fromRules = getRuleBasedSavings(appData, {});
+    return fromRules.length >= fromApi.length ? fromRules : fromApi;
+  }, [savingsData?.items, appData]);
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
@@ -166,11 +200,38 @@ const Index = () => {
     estimatedPRSI: null, recurringTotal: 0, trueAvailable: 0, riskRatio: 0,
   };
 
+  const affordabilityInput: AffordabilityInput = useMemo(
+    () => ({
+      summary,
+      runway: runwayData ?? { days: 0, status: "critical", monthlyBurn: 0, trueAvailable: 0 },
+      forecast: forecastData?.forecast ?? [],
+      transactions: transactionsData?.transactions ?? [],
+    }),
+    [summary, runwayData, forecastData?.forecast, transactionsData?.transactions]
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Affordability Advisor entry point */}
+        <section className="flex justify-center pt-2">
+          <div className="w-full max-w-3xl">
+            <button
+              type="button"
+              onClick={() => setAffordabilityOpen(true)}
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-left"
+            >
+              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
+                <BrainCircuit className="h-4 w-4" />
+              </span>
+              <span className="text-sm text-muted-foreground flex-1">
+                Ask the Affordability Advisor… e.g. &quot;Can I afford a dog?&quot; or &quot;Can I afford a €2,500/month hire?&quot;
+              </span>
+            </button>
+          </div>
+        </section>
 
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3 flex-wrap">
@@ -279,6 +340,11 @@ const Index = () => {
           <AIInsightPanel insightText={insightData?.insight ?? "Loading insight..."} />
         </div>
 
+        {/* Savings & Optimizations – below Tax Vault / Runway */}
+        <section className="rounded-2xl border border-border bg-card/50 p-6">
+          <SavingsStream items={savingsItems} />
+        </section>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <RecurringPaymentsList payments={recurringData?.recurring ?? []} />
           <RecurringPayments
@@ -290,6 +356,12 @@ const Index = () => {
 
         <TransactionsTable transactions={transactionsData?.transactions ?? []} />
       </main>
+
+      <AffordabilityAdvisor
+        open={affordabilityOpen}
+        onClose={() => setAffordabilityOpen(false)}
+        input={affordabilityInput}
+      />
     </div>
   );
 };

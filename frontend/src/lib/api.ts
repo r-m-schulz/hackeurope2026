@@ -1,4 +1,4 @@
-import type { FinancialSummary, ForecastDay, ExpenseBreakdown, RecurringPayment, Transaction, ManualSubscription } from "./types";
+import type { FinancialSummary, ForecastDay, ExpenseBreakdown, RecurringPayment, Transaction, ManualSubscription, AppData, CFOQueryInput, CFOQueryResponse, CFOSavingsResponse, AffordabilitySummary, AffordabilityAdvisorResponse } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -88,6 +88,34 @@ export const api = {
 
     delete: (id: string, token: string) =>
       del<{ message: string; id: string }>(`/subscriptions/${id}`, token),
+  },
+
+  cfo: {
+    query: (body: CFOQueryInput, token: string) =>
+      post<CFOQueryResponse>("/cfo/query", body, token),
+
+    savings: (
+      token: string,
+      userType: UserType,
+      body?: { appDataSnapshot?: AppData; userSettings?: { student?: boolean } }
+    ) =>
+      body?.appDataSnapshot != null
+        ? post<CFOSavingsResponse>("/cfo/savings", { ...body, user_type: userType }, token)
+        : get<CFOSavingsResponse>("/cfo/savings", { user_type: userType }, token),
+
+    affordability: (
+      body: {
+        question: string;
+        financialSummary: AffordabilitySummary;
+        options?: {
+          priceExtracted?: number;
+          priceAboveTrueAvailable?: boolean;
+          trueAvailableNegative?: boolean;
+          forecastLowestNegative?: boolean;
+        };
+      },
+      token: string
+    ) => post<AffordabilityAdvisorResponse>("/cfo/affordability", body, token),
   },
 
   plaid: {
