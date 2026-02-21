@@ -2,8 +2,11 @@ const express = require('express');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const authRoutes = require('./routes/auth');
 
 app.use(express.json());
+
+app.use('/auth', authRoutes);
 
 app.get('/', (_req, res) => {
   res.json({ message: 'hackeurope2026 API' });
