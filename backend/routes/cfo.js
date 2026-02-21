@@ -185,9 +185,14 @@ router.post('/affordability', async (req, res) => {
     console.log('[Groq affordability] raw response:', raw);
     let parsed;
     try {
-      const jsonStr = raw.replace(/^[^]*?(\{[\s\S]*\})[^]*$/, '$1');
-      parsed = JSON.parse(jsonStr);
+      // Strip <think>...</think> blocks that some reasoning models emit
+      const stripped = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      // Find the outermost JSON object (last { ... } pair to avoid stray braces in preamble)
+      const match = stripped.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('no JSON object found');
+      parsed = JSON.parse(match[match.length - 1] ?? match[0]);
     } catch (_) {
+      console.error('[Groq affordability] JSON parse failed, raw:', raw.slice(0, 500));
       return res.status(502).json({
         error: 'AI response was not valid JSON.',
         raw: raw.slice(0, 500),

@@ -27,9 +27,19 @@ interface AffordabilityAdvisorProps {
   onClose: () => void;
   /** Current financial data for context */
   input: AffordabilityInput;
+  /** Pre-filled query to auto-submit when the panel opens */
+  initialQuery?: string;
+  /** Called after the initial query has been consumed so the parent can clear it */
+  onInitialQueryConsumed?: () => void;
 }
 
-export function AffordabilityAdvisor({ open, onClose, input }: AffordabilityAdvisorProps) {
+export function AffordabilityAdvisor({
+  open,
+  onClose,
+  input,
+  initialQuery,
+  onInitialQueryConsumed,
+}: AffordabilityAdvisorProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,9 +56,7 @@ export function AffordabilityAdvisor({ open, onClose, input }: AffordabilityAdvi
   const trueAvailableNegative = financialSummary.trueAvailableCash < 0;
   const forecastLowestNegative = financialSummary.forecastLowestPoint30Days < 0;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const question = inputValue.trim();
+  async function sendMessage(question: string) {
     if (!question || loading) return;
 
     const priceExtracted = extractPriceFromMessage(question);
@@ -75,10 +83,18 @@ export function AffordabilityAdvisor({ open, onClose, input }: AffordabilityAdvi
         setLoading(false);
         return;
       }
-      const res = await api.cfo.affordability(
-        { question, financialSummary, options },
-        token
-      );
+      let res: Awaited<ReturnType<typeof api.cfo.affordability>>;
+      try {
+        res = await api.cfo.affordability({ question, financialSummary, options }, token);
+      } catch (firstErr) {
+        // Retry once on 502 (AI JSON parse failure / cold-start)
+        if (firstErr instanceof Error && firstErr.message.includes("502")) {
+          await new Promise((r) => setTimeout(r, 800));
+          res = await api.cfo.affordability({ question, financialSummary, options }, token);
+        } else {
+          throw firstErr;
+        }
+      }
       const parsed = parseAIResponse(res) ?? {
         verdict: "RISKY" as const,
         confidence: 50,
@@ -106,6 +122,21 @@ export function AffordabilityAdvisor({ open, onClose, input }: AffordabilityAdvi
     } finally {
       setLoading(false);
     }
+  }
+
+  // Auto-submit when the panel opens with a pre-filled query
+  useEffect(() => {
+    if (open && initialQuery) {
+      sendMessage(initialQuery);
+      onInitialQueryConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialQuery]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const question = inputValue.trim();
+    await sendMessage(question);
   }
 
   function handleRetry() {

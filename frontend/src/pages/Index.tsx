@@ -41,6 +41,8 @@ const Index = () => {
   const token = getToken()!;
   const userType = getUserType() ?? "sme";
   const [affordabilityOpen, setAffordabilityOpen] = useState(false);
+  const [cfoBarQuery, setCfoBarQuery] = useState("");
+  const [pendingCfoQuery, setPendingCfoQuery] = useState<string | undefined>(undefined);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const [balanceInput, setBalanceInput] = useState("");
 
@@ -218,18 +220,27 @@ const Index = () => {
         {/* Affordability Advisor entry point */}
         <section className="flex justify-center pt-2">
           <div className="w-full max-w-3xl">
-            <button
-              type="button"
-              onClick={() => setAffordabilityOpen(true)}
-              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-left"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const q = cfoBarQuery.trim();
+                setPendingCfoQuery(q || undefined);
+                setCfoBarQuery("");
+                setAffordabilityOpen(true);
+              }}
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 hover:shadow-md focus-within:bg-primary/10 focus-within:border-primary/50 focus-within:shadow-md transition-all duration-200"
             >
               <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
                 <BrainCircuit className="h-4 w-4" />
               </span>
-              <span className="text-sm text-muted-foreground flex-1">
-                Ask the Affordability Advisor… e.g. &quot;Can I afford a dog?&quot; or &quot;Can I afford a €2,500/month hire?&quot;
-              </span>
-            </button>
+              <input
+                type="text"
+                value={cfoBarQuery}
+                onChange={(e) => setCfoBarQuery(e.target.value)}
+                placeholder='Ask PocketCFO… e.g. "Can I afford a dog?" or "Can I afford a €2,500/month hire?"'
+                className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
+              />
+            </form>
           </div>
         </section>
 
@@ -361,6 +372,8 @@ const Index = () => {
         open={affordabilityOpen}
         onClose={() => setAffordabilityOpen(false)}
         input={affordabilityInput}
+        initialQuery={pendingCfoQuery}
+        onInitialQueryConsumed={() => setPendingCfoQuery(undefined)}
       />
     </div>
   );

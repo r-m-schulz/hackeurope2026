@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Transaction } from "@/lib/types";
 import { formatCurrency } from "@/lib/finance-engine";
-import { ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, ChevronUp, ChevronDown, Search, X } from "lucide-react";
 
 type SortBy = "date" | "amount";
 type SortDir = "asc" | "desc";
@@ -13,9 +13,25 @@ interface TransactionsTableProps {
 export function TransactionsTable({ transactions }: TransactionsTableProps) {
   const [sortBy, setSortBy] = useState<SortBy>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [merchantQuery, setMerchantQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(transactions.map((t) => t.category))).sort();
+    return unique;
+  }, [transactions]);
+
+  const filtered = useMemo(() => {
+    const q = merchantQuery.trim().toLowerCase();
+    return transactions.filter((t) => {
+      const matchesMerchant = !q || t.merchant.toLowerCase().includes(q);
+      const matchesCategory = categoryFilter === "all" || t.category === categoryFilter;
+      return matchesMerchant && matchesCategory;
+    });
+  }, [transactions, merchantQuery, categoryFilter]);
 
   const sorted = useMemo(() => {
-    return [...transactions].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       if (sortBy === "date") {
         const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
         return sortDir === "asc" ? diff : -diff;
@@ -23,7 +39,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
       const diff = a.amount - b.amount;
       return sortDir === "asc" ? diff : -diff;
     });
-  }, [transactions, sortBy, sortDir]);
+  }, [filtered, sortBy, sortDir]);
 
   const toggleSort = (column: SortBy) => {
     if (sortBy === column) {
@@ -49,7 +65,11 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
   return (
     <div className="card-metric overflow-hidden">
       <h3 className="text-sm font-semibold text-foreground mb-1">Recent Transactions</h3>
-      <p className="text-xs text-muted-foreground mb-4">All account activity</p>
+      <p className="text-xs text-muted-foreground mb-4">
+        {sorted.length === transactions.length
+          ? "All account activity"
+          : `${sorted.length} of ${transactions.length} transactions`}
+      </p>
 
       <div className="overflow-x-auto -mx-6 max-h-[14rem] overflow-y-auto">
         <table className="w-full text-sm">
@@ -65,8 +85,46 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                   <SortIcons column="date" />
                 </button>
               </th>
-              <th className="text-left text-xs font-medium text-muted-foreground px-3 pb-3 pt-0">Merchant</th>
-              <th className="text-left text-xs font-medium text-muted-foreground px-3 pb-3 pt-0">Category</th>
+              <th className="text-left text-xs font-medium text-muted-foreground px-3 pb-3 pt-0">
+                <div className="flex items-center gap-1.5">
+                  <span>Merchant</span>
+                  <div className="relative">
+                    <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="text"
+                      value={merchantQuery}
+                      onChange={(e) => setMerchantQuery(e.target.value)}
+                      placeholder="Search…"
+                      className="pl-5 pr-5 py-0.5 w-28 rounded border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-normal"
+                    />
+                    {merchantQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setMerchantQuery("")}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label="Clear"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </th>
+              <th className="text-left text-xs font-medium text-muted-foreground px-3 pb-3 pt-0">
+                <div className="flex items-center gap-1.5">
+                  <span>Category</span>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="py-0.5 px-1.5 rounded border border-border bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 font-normal max-w-[100px]"
+                  >
+                    <option value="all">All</option>
+                    {categories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </th>
               <th className="text-right text-xs font-medium text-muted-foreground px-6 pb-3 pt-0">
                 <button
                   type="button"
@@ -80,6 +138,13 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
             </tr>
           </thead>
           <tbody>
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-sm text-muted-foreground">
+                  No transactions match your search.
+                </td>
+              </tr>
+            )}
             {sorted.map((t) => (
               <tr
                 key={t.id}
