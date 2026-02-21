@@ -181,7 +181,7 @@ function getExpenseBreakdownFromAppData(appData) {
 }
 
 function calculateSummaryFromAppData(appData) {
-  const balance = appData.currentBalance;
+  const balance = Number.isFinite(appData.currentBalance) ? appData.currentBalance : 0;
   const taxes = estimateTaxes(appData.transactions, appData.taxConfig);
   const detectedRecurring = detectRecurringPayments(appData.transactions);
   const upcomingDetected = getUpcomingRecurringTotal(detectedRecurring, 30);
@@ -250,17 +250,49 @@ function generateAIInsight(balance, forecast, taxLiability, tone) {
   };
 }
 
+function normalisedMonthlySubAmount(sub) {
+  const freq = (sub.frequency || 'monthly').toLowerCase();
+  if (freq === 'weekly') return sub.amount * (365 / 12 / 7);   // ~4.33 weeks/month
+  if (freq === 'annual' || freq === 'yearly') return sub.amount / 12;
+  if (freq === 'quarterly') return sub.amount / 3;
+  return sub.amount; // monthly (default)
+}
+
 function getCashRunwayFromAppData(appData) {
   const summary = calculateSummaryFromAppData(appData);
-  const detected = detectRecurringPayments(appData.transactions);
-  const monthlyDetected = detected.reduce((s, r) => s + r.averageAmount, 0);
-  const monthlyManual = appData.subscriptions.reduce((s, sub) => {
-    return s + (sub.frequency === 'monthly' ? sub.amount : sub.amount * 4);
-  }, 0);
-  const monthlyBurn = monthlyDetected + monthlyManual;
+
+  // Derive monthly burn from actual historical expenses rather than only
+  // pattern-matched recurring payments (which can silently return 0 with
+  // real bank data where merchant names vary).
+  const expenses = appData.transactions.filter(t => t.type === 'expense');
+  let monthlyBurnFromHistory = 0;
+  if (expenses.length > 0) {
+    const timestamps = expenses.map(t => new Date(t.date).getTime());
+    const minTs = Math.min(...timestamps);
+    const maxTs = Math.max(...timestamps);
+    // Use at least 30 days to avoid wild extrapolation from very short windows.
+    const periodDays = Math.max((maxTs - minTs) / (1000 * 60 * 60 * 24), 30);
+    const totalExpenses = expenses.reduce((s, t) => s + t.amount, 0);
+    monthlyBurnFromHistory = (totalExpenses / periodDays) * 30;
+  }
+
+  // Add manual subscriptions, converting each to a monthly equivalent.
+  const monthlyManual = appData.subscriptions.reduce(
+    (s, sub) => s + normalisedMonthlySubAmount(sub),
+    0
+  );
+
+  const monthlyBurn = monthlyBurnFromHistory + monthlyManual;
+
+  // Guard: if truly no expenses and no subscriptions, return a sentinel.
   if (monthlyBurn <= 0) return { days: 999, monthlyBurn: 0, trueAvailable: summary.trueAvailable };
+
   const dailyBurn = monthlyBurn / 30;
-  const days = Math.max(0, Math.floor(summary.trueAvailable / dailyBurn));
+
+  // trueAvailable = balance - taxes - upcoming recurring (next 30 days).
+  // Guard against null/NaN balance so we never return a nonsense runway.
+  const available = Number.isFinite(summary.trueAvailable) ? summary.trueAvailable : 0;
+  const days = Math.max(0, Math.floor(available / dailyBurn));
   return { days, monthlyBurn: round2(monthlyBurn), trueAvailable: summary.trueAvailable };
 }
 

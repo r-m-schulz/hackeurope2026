@@ -279,16 +279,34 @@ export function generateAIInsight(
   return `Your cash flow looks stable. No shortfalls predicted in the next 30 days.`;
 }
 
-/** Cash runway days using true available and combined burn (detected + manual subs as monthly). */
+function normalisedMonthlySubAmount(sub: ManualSubscription): number {
+  const freq = (sub.frequency || "monthly").toLowerCase();
+  if (freq === "weekly") return sub.amount * (365 / 12 / 7); // ~4.33 weeks/month
+  if (freq === "annual" || freq === "yearly") return sub.amount / 12;
+  if (freq === "quarterly") return sub.amount / 3;
+  return sub.amount; // monthly (default)
+}
+
+/** Cash runway days derived from actual historical expense rate + manual subscriptions. */
 export function getCashRunwayFromAppData(appData: AppData): number {
   const summary = calculateSummaryFromAppData(appData);
-  const detected = detectRecurringPayments(appData.transactions);
-  const monthlyDetected = detected.reduce((s, r) => s + r.averageAmount, 0);
-  const monthlyManual = appData.subscriptions.reduce((s, sub) => {
-    return s + (sub.frequency === "monthly" ? sub.amount : sub.amount * 4);
-  }, 0);
-  const monthlyBurn = monthlyDetected + monthlyManual;
+
+  const expenses = appData.transactions.filter((t) => t.type === "expense");
+  let monthlyBurnFromHistory = 0;
+  if (expenses.length > 0) {
+    const timestamps = expenses.map((t) => new Date(t.date).getTime());
+    const minTs = Math.min(...timestamps);
+    const maxTs = Math.max(...timestamps);
+    const periodDays = Math.max((maxTs - minTs) / (1000 * 60 * 60 * 24), 30);
+    const totalExpenses = expenses.reduce((s, t) => s + t.amount, 0);
+    monthlyBurnFromHistory = (totalExpenses / periodDays) * 30;
+  }
+
+  const monthlyManual = appData.subscriptions.reduce((s, sub) => s + normalisedMonthlySubAmount(sub), 0);
+  const monthlyBurn = monthlyBurnFromHistory + monthlyManual;
+
   if (monthlyBurn <= 0) return 999;
   const dailyBurn = monthlyBurn / 30;
-  return Math.max(0, Math.floor(summary.trueAvailable / dailyBurn));
+  const available = Number.isFinite(summary.trueAvailable) ? summary.trueAvailable : 0;
+  return Math.max(0, Math.floor(available / dailyBurn));
 }

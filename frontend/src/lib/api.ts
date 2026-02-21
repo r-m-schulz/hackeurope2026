@@ -89,4 +89,12 @@ export const api = {
     delete: (id: string, token: string) =>
       del<{ message: string; id: string }>(`/subscriptions/${id}`, token),
   },
+
+  plaid: {
+    createLinkToken: (token: string) =>
+      post<{ link_token: string }>("/plaid/create-link-token", {}, token),
+
+    exchangeToken: (public_token: string, token: string) =>
+      post<{ status: string }>("/plaid/exchange-token", { public_token }, token),
+  },
 };

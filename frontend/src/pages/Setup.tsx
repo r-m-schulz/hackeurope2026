@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getToken, getUserType } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { usePlaidLink } from "react-plaid-link";
 import {
     Landmark,
     PenLine,
@@ -9,29 +10,22 @@ import {
     ShieldCheck,
     ChevronRight,
     X,
-    Building2,
     Lock,
     Zap,
     PiggyBank,
 } from "lucide-react";
 import { toast } from "sonner";
 
-const bankOptions = [
-    { name: "AIB", logo: "AIB" },
-    { name: "Bank of Ireland", logo: "BOI" },
-    { name: "Ulster Bank", logo: "ULB" },
-    { name: "Revolut", logo: "REV" },
-    { name: "N26", logo: "N26" },
-    { name: "PTSB", logo: "PTSB" },
-];
-
 type Step = "choose" | "bank-connect" | "manual-form";
 
 export default function Setup() {
     const navigate = useNavigate();
     const [step, setStep] = useState<Step>("choose");
-    const [selectedBank, setSelectedBank] = useState<string | null>(null);
-    const [connecting, setConnecting] = useState(false);
+
+    // Plaid state
+    const [linkToken, setLinkToken] = useState<string | null>(null);
+    const [fetchingToken, setFetchingToken] = useState(false);
+    const [exchanging, setExchanging] = useState(false);
 
     // Manual form state
     const [balance, setBalance] = useState("");
@@ -39,14 +33,36 @@ export default function Setup() {
     const [monthlyExpenses, setMonthlyExpenses] = useState("");
     const [saving, setSaving] = useState(false);
 
-    async function handleBankConnect() {
-        if (!selectedBank) return;
-        setConnecting(true);
-        // Simulate connection delay — real impl would open Open Banking OAuth
-        await new Promise((r) => setTimeout(r, 1800));
-        setConnecting(false);
-        navigate("/");
-    }
+    // Fetch a Plaid link token when the user enters the bank-connect step
+    useEffect(() => {
+        if (step !== "bank-connect") return;
+        const token = getToken();
+        if (!token) return;
+        setFetchingToken(true);
+        api.plaid
+            .createLinkToken(token)
+            .then((data) => setLinkToken(data.link_token))
+            .catch(() => toast.error("Couldn't start bank connection. Please try again."))
+            .finally(() => setFetchingToken(false));
+    }, [step]);
+
+    const { open: openPlaid, ready: plaidReady } = usePlaidLink({
+        token: linkToken,
+        onSuccess: async (publicToken) => {
+            const token = getToken();
+            if (!token) return;
+            setExchanging(true);
+            try {
+                await api.plaid.exchangeToken(publicToken, token);
+                toast.success("Bank connected successfully!");
+                navigate("/");
+            } catch {
+                toast.error("Couldn't save bank connection. Please try again.");
+            } finally {
+                setExchanging(false);
+            }
+        },
+    });
 
     async function handleManualSave(e: React.FormEvent) {
         e.preventDefault();
@@ -181,11 +197,11 @@ export default function Setup() {
                     </div>
                 )}
 
-                {/* ── Step 2a: Bank connect ── */}
+                {/* ── Step 2a: Bank connect (Plaid) ── */}
                 {step === "bank-connect" && (
                     <div className="w-full max-w-md">
                         <button
-                            onClick={() => setStep("choose")}
+                            onClick={() => { setStep("choose"); setLinkToken(null); }}
                             className="flex items-center gap-1.5 text-sm text-[#0a0a0a]/40 dark:text-white/35 hover:text-[#76b900] transition-colors mb-8"
                         >
                             <X className="h-3.5 w-3.5" />
@@ -198,41 +214,11 @@ export default function Setup() {
                                 Step 2 of 2
                             </div>
                             <h1 className="text-2xl font-black tracking-tight text-[#0a0a0a] dark:text-white mb-2">
-                                Select your bank
+                                Connect your bank
                             </h1>
                             <p className="text-sm text-[#0a0a0a]/45 dark:text-white/40">
-                                We'll securely connect using Open Banking (read-only access).
+                                A secure Plaid window will open so you can choose your bank and log in safely.
                             </p>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3 mb-6">
-                            {bankOptions.map((bank) => (
-                                <button
-                                    key={bank.name}
-                                    onClick={() => setSelectedBank(bank.name)}
-                                    className={`rounded-xl p-4 flex flex-col items-center gap-2 border transition-all duration-150 ${selectedBank === bank.name
-                                            ? "border-[#76b900]/65 bg-[#76b900]/10"
-                                            : "border-[#0a0a0a]/10 dark:border-white/10 bg-white dark:bg-[#111111] hover:border-[#76b900]/35"
-                                        }`}
-                                >
-                                    <div
-                                        className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-black ${selectedBank === bank.name
-                                                ? "bg-[#76b900] text-[#0a0a0a]"
-                                                : "bg-[#0a0a0a]/6 dark:bg-white/8 text-[#0a0a0a]/50 dark:text-white/50"
-                                            }`}
-                                    >
-                                        {bank.logo}
-                                    </div>
-                                    <span
-                                        className={`text-[10px] font-semibold text-center leading-tight ${selectedBank === bank.name
-                                                ? "text-[#76b900]"
-                                                : "text-[#0a0a0a]/45 dark:text-white/40"
-                                            }`}
-                                    >
-                                        {bank.name}
-                                    </span>
-                                </button>
-                            ))}
                         </div>
 
                         {/* Security note */}
@@ -240,25 +226,25 @@ export default function Setup() {
                             <Lock className="h-4 w-4 text-[#76b900] shrink-0 mt-0.5" />
                             <p className="text-xs text-[#0a0a0a]/55 dark:text-white/50 leading-relaxed">
                                 <span className="font-semibold text-[#0a0a0a]/70 dark:text-white/65">Read-only access.</span>{" "}
-                                We never store your banking credentials. Connection is encrypted and can be revoked at any time.
+                                Your credentials go directly to your bank via Plaid — TrueBalance never sees them. You can disconnect at any time.
                             </p>
                         </div>
 
                         <button
-                            onClick={handleBankConnect}
-                            disabled={!selectedBank || connecting}
+                            onClick={() => openPlaid()}
+                            disabled={fetchingToken || !plaidReady || exchanging}
                             className="w-full py-3 rounded-xl font-bold text-sm transition-all duration-200 hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed bg-[#76b900] text-[#0a0a0a]"
-                            style={{ boxShadow: selectedBank && !connecting ? "0 0 22px rgba(118,185,0,0.28)" : "none" }}
+                            style={{ boxShadow: plaidReady && !exchanging ? "0 0 22px rgba(118,185,0,0.28)" : "none" }}
                         >
-                            {connecting ? (
+                            {fetchingToken || exchanging ? (
                                 <span className="flex items-center justify-center gap-2">
                                     <span className="w-4 h-4 border-2 border-[#0a0a0a]/25 border-t-[#0a0a0a] rounded-full animate-spin" />
-                                    Connecting…
+                                    {exchanging ? "Saving connection…" : "Preparing…"}
                                 </span>
                             ) : (
                                 <span className="flex items-center justify-center gap-2">
-                                    <Building2 className="h-4 w-4" />
-                                    Connect {selectedBank ?? "bank"}
+                                    <ShieldCheck className="h-4 w-4" />
+                                    Open Plaid
                                     <ArrowRight className="h-4 w-4" />
                                 </span>
                             )}
