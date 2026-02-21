@@ -20,7 +20,7 @@ export function ForecastChart({ data }: ForecastChartProps) {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
               tickFormatter={(v) => {
                 const d = new Date(v);
                 return `${d.getDate()}/${d.getMonth() + 1}`;
@@ -28,7 +28,7 @@ export function ForecastChart({ data }: ForecastChartProps) {
               interval={4}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
               tickFormatter={(v) => formatCurrency(v)}
               width={80}
             />
@@ -38,6 +38,7 @@ export function ForecastChart({ data }: ForecastChartProps) {
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "0.5rem",
                 fontSize: 12,
+                color: "hsl(var(--card-foreground))",
               }}
               formatter={(value: number) => [formatCurrency(value), "Projected"]}
               labelFormatter={(label) => new Date(label).toLocaleDateString("en-IE")}
@@ -46,10 +47,10 @@ export function ForecastChart({ data }: ForecastChartProps) {
             <Line
               type="monotone"
               dataKey="projected"
-              stroke="hsl(var(--navy))"
+              stroke="hsl(var(--chart-line))"
               strokeWidth={2.5}
               dot={false}
-              activeDot={{ r: 4, fill: "hsl(var(--navy))" }}
+              activeDot={{ r: 4, fill: "hsl(var(--chart-line))" }}
             />
           </LineChart>
         </ResponsiveContainer>

@@ -51,6 +51,7 @@
 
     --navy: 220 60% 12%;
     --navy-light: 220 40% 20%;
+    --chart-line: 200 70% 48%;
 
     --chart-1: 220 60% 12%;
     --chart-2: 152 60% 40%;
@@ -101,6 +102,11 @@
     --safe-muted: 152 30% 18%;
     --warning-muted: 38 40% 20%;
     --risk-muted: 0 40% 22%;
+
+    /* Chart line (forecast) – light blue, visible on dark background */
+    --navy: 210 40% 85%;
+    --navy-light: 210 30% 35%;
+    --chart-line: 200 60% 65%;
   }
 }
 
