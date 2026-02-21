@@ -1,6 +1,7 @@
-import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type UserType } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
+import { getToken, getUserType, clearAuth } from "@/lib/auth";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { MetricCards } from "@/components/MetricCards";
 import { ForecastChart } from "@/components/ForecastChart";
@@ -13,8 +14,10 @@ import { RecurringPayments } from "@/components/RecurringPayments";
 import { AIInsightPanel } from "@/components/AIInsightPanel";
 
 const Index = () => {
-  const [userType, setUserType] = useState<UserType>("sme");
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const token = getToken()!;
+  const userType = getUserType() ?? "sme";
 
   const { data: summaryData } = useQuery({
     queryKey: ["summary", userType],
@@ -52,26 +55,33 @@ const Index = () => {
   });
 
   const { data: subscriptionsData } = useQuery({
-    queryKey: ["subscriptions", userType],
-    queryFn: () => api.subscriptions.list(userType),
+    queryKey: ["subscriptions"],
+    queryFn: () => api.subscriptions.list(token),
   });
 
   const invalidateAll = () => {
-    ["subscriptions", "summary", "forecast", "breakdown", "runway", "insight"].forEach((key) =>
+    queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+    ["summary", "forecast", "breakdown", "runway", "insight"].forEach((key) =>
       queryClient.invalidateQueries({ queryKey: [key, userType] })
     );
   };
 
   const addMutation = useMutation({
     mutationFn: (sub: { merchant: string; amount: number; nextDueDate: string; frequency: "monthly" | "weekly" }) =>
-      api.subscriptions.add(userType, sub),
+      api.subscriptions.add(sub, token),
     onSuccess: invalidateAll,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.subscriptions.delete(userType, id),
+    mutationFn: (id: string) => api.subscriptions.delete(id, token),
     onSuccess: invalidateAll,
   });
+
+  function handleLogout() {
+    clearAuth();
+    queryClient.clear();
+    navigate("/login");
+  }
 
   const summary = summaryData ?? {
     balance: 0, estimatedTax: 0, estimatedVAT: null, estimatedCorpTax: null,
@@ -84,21 +94,19 @@ const Index = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">View as:</span>
-          {(["sme", "individual"] as UserType[]).map((type) => (
-            <button
-              key={type}
-              onClick={() => setUserType(type)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                userType === type
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {type === "sme" ? "SME" : "Individual"}
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Account type:</span>
+            <span className="px-3 py-1 rounded-full text-sm font-medium bg-primary text-primary-foreground">
+              {userType === "sme" ? "SME" : "Individual"}
+            </span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Log out
+          </button>
         </div>
 
         <MetricCards summary={summary} />
