@@ -1,0 +1,39 @@
+{
+  "account": {
+    "displayName": "Personal Sandbox",
+    "currentBalance": 12400
+  },
+  "transactions": [
+    { "id": "ind-t1", "date": "2025-01-05", "amount": 3200, "merchant": "Employer Ltd", "type": "income", "category": "Salary" },
+    { "id": "ind-t2", "date": "2025-02-05", "amount": 3200, "merchant": "Employer Ltd", "type": "income", "category": "Salary" },
+    { "id": "ind-t3", "date": "2025-03-05", "amount": 3250, "merchant": "Employer Ltd", "type": "income", "category": "Salary" },
+    { "id": "ind-t4", "date": "2025-01-15", "amount": 450, "merchant": "Freelance Project", "type": "income", "category": "Other Income" },
+    { "id": "ind-t5", "date": "2025-02-20", "amount": 380, "merchant": "Freelance Project", "type": "income", "category": "Other Income" },
+    { "id": "ind-t6", "date": "2025-01-01", "amount": 950, "merchant": "Landlord", "type": "expense", "category": "Rent" },
+    { "id": "ind-t7", "date": "2025-02-01", "amount": 950, "merchant": "Landlord", "type": "expense", "category": "Rent" },
+    { "id": "ind-t8", "date": "2025-03-01", "amount": 950, "merchant": "Landlord", "type": "expense", "category": "Rent" },
+    { "id": "ind-t9", "date": "2025-01-08", "amount": 85, "merchant": "Electric Ireland", "type": "expense", "category": "Utilities" },
+    { "id": "ind-t10", "date": "2025-02-08", "amount": 92, "merchant": "Electric Ireland", "type": "expense", "category": "Utilities" },
+    { "id": "ind-t11", "date": "2025-03-08", "amount": 78, "merchant": "Electric Ireland", "type": "expense", "category": "Utilities" },
+    { "id": "ind-t12", "date": "2025-01-01", "amount": 12.99, "merchant": "Netflix", "type": "expense", "category": "Subscriptions" },
+    { "id": "ind-t13", "date": "2025-02-01", "amount": 12.99, "merchant": "Netflix", "type": "expense", "category": "Subscriptions" },
+    { "id": "ind-t14", "date": "2025-03-01", "amount": 12.99, "merchant": "Netflix", "type": "expense", "category": "Subscriptions" },
+    { "id": "ind-t15", "date": "2025-01-10", "amount": 9.99, "merchant": "Spotify", "type": "expense", "category": "Subscriptions" },
+    { "id": "ind-t16", "date": "2025-02-10", "amount": 9.99, "merchant": "Spotify", "type": "expense", "category": "Subscriptions" },
+    { "id": "ind-t17", "date": "2025-03-10", "amount": 9.99, "merchant": "Spotify", "type": "expense", "category": "Subscriptions" },
+    { "id": "ind-t18", "date": "2025-01-12", "amount": 220, "merchant": "SuperValu", "type": "expense", "category": "Groceries" },
+    { "id": "ind-t19", "date": "2025-01-25", "amount": 185, "merchant": "Tesco", "type": "expense", "category": "Groceries" },
+    { "id": "ind-t20", "date": "2025-02-14", "amount": 195, "merchant": "SuperValu", "type": "expense", "category": "Groceries" },
+    { "id": "ind-t21", "date": "2025-02-28", "amount": 210, "merchant": "Tesco", "type": "expense", "category": "Groceries" },
+    { "id": "ind-t22", "date": "2025-03-15", "amount": 205, "merchant": "SuperValu", "type": "expense", "category": "Groceries" },
+    { "id": "ind-t23", "date": "2025-01-18", "amount": 45, "merchant": "Dublin Bus", "type": "expense", "category": "Transport" },
+    { "id": "ind-t24", "date": "2025-02-18", "amount": 52, "merchant": "Dublin Bus", "type": "expense", "category": "Transport" },
+    { "id": "ind-t25", "date": "2025-03-18", "amount": 48, "merchant": "Dublin Bus", "type": "expense", "category": "Transport" },
+    { "id": "ind-t26", "date": "2025-01-22", "amount": 65, "merchant": "GP Visit", "type": "expense", "category": "Healthcare" },
+    { "id": "ind-t27", "date": "2025-03-10", "amount": 120, "merchant": "Revenue", "type": "expense", "category": "Tax" }
+  ],
+  "subscriptions": [
+    { "id": "sub-ind-1", "merchant": "Netflix", "amount": 12.99, "nextDueDate": "2025-04-01", "frequency": "monthly" },
+    { "id": "sub-ind-2", "merchant": "Spotify", "amount": 9.99, "nextDueDate": "2025-04-10", "frequency": "monthly" }
+  ]
+}

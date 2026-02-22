@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabaseAdmin = require('../supabaseAdmin');
-const plaidClient = require('../lib/plaid-client');
-const { getTaxConfig, getLabels } = require('../lib/tax-config');
+const { getLabels } = require('../lib/tax-config');
 const { requireAuth } = require('../lib/auth-middleware');
 const {
   detectRecurringPayments,
@@ -12,113 +11,10 @@ const {
   generateAIInsight,
   getCashRunwayFromAppData,
 } = require('../lib/finance-engine');
+const { getTransactions, getBalance, buildAppData } = require('../lib/app-data-builder');
 
 // All finance routes require auth. requireAuth sets req.userId and req.userType from JWT.
 router.use(requireAuth);
-
-// Normalise a Plaid transaction into the shape the finance engine expects.
-// Plaid convention: positive amount = money leaving the account (expense),
-//                  negative amount = money entering the account (income).
-function normalisePlaidTransaction(tx) {
-  return {
-    id: tx.transaction_id,
-    type: tx.amount > 0 ? 'expense' : 'income',
-    amount: Math.abs(tx.amount),
-    merchant: tx.merchant_name || tx.name,
-    category:
-      tx.personal_finance_category?.primary ||
-      (tx.category && tx.category[0]) ||
-      'Other',
-    date: tx.date,
-  };
-}
-
-async function fetchPlaidTransactions(accessToken) {
-  const today = new Date();
-  const startDate = new Date(today);
-  startDate.setDate(startDate.getDate() - 90);
-
-  const response = await plaidClient.transactionsGet({
-    access_token: accessToken,
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0],
-  });
-
-  return response.data.transactions.map(normalisePlaidTransaction);
-}
-
-// Returns transactions from Plaid if the user has connected their bank,
-// otherwise returns only transactions belonging to this user (empty for new users).
-// Seed data is never shown to authenticated users who haven't connected a bank.
-async function getTransactions(_userType, userId = null) {
-  if (userId) {
-    const { data: profile } = await supabaseAdmin
-      .from('user_profiles')
-      .select('plaid_access_token')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (profile?.plaid_access_token) {
-      return fetchPlaidTransactions(profile.plaid_access_token);
-    }
-
-    // No bank connected — return only this user's own transactions (empty for new users)
-    const { data, error } = await supabaseAdmin
-      .from('transactions')
-      .select('*')
-      .eq('user_id', userId);
-    if (error) throw error;
-    return data ?? [];
-  }
-
-  // No userId (should not happen given requireAuth, but guard anyway)
-  return [];
-}
-
-async function getBalance(userId) {
-  if (!userId) return null;
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('user_settings')
-      .select('current_balance')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (error) return null;
-    return data ? Number(data.current_balance) : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-async function getSubscriptions(userId) {
-  const { data, error } = await supabaseAdmin
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', userId);
-  if (error) throw error;
-  // Map DB column names to frontend shape
-  return data.map(s => ({
-    id: s.id,
-    merchant: s.merchant,
-    amount: Number(s.amount),
-    nextDueDate: s.next_due_date,
-    frequency: s.frequency,
-  }));
-}
-
-async function buildAppData(userType, userId = null) {
-  const [transactions, subscriptions, currentBalance] = await Promise.all([
-    getTransactions(userType, userId),
-    getSubscriptions(userId),
-    getBalance(userId),
-  ]);
-  return {
-    transactions,
-    subscriptions,
-    currentBalance,
-    taxConfig: getTaxConfig(userType),
-  };
-}
 
 // GET /finance/summary
 router.get('/summary', async (req, res) => {
@@ -129,8 +25,8 @@ router.get('/summary', async (req, res) => {
 
 // GET /finance/settings (auth required) — returns current_balance
 router.get('/settings', requireAuth, async (req, res) => {
-  const balance = await getBalance(req.userId);
-  res.json({ current_balance: balance !== null && balance !== undefined ? balance : 0 });
+  const balance = getBalance(req.userType);
+  res.json({ current_balance: balance });
 });
 
 // PUT /finance/settings (auth required) — update current_balance
@@ -159,7 +55,7 @@ router.put('/settings', requireAuth, async (req, res) => {
 
 // GET /finance/transactions
 router.get('/transactions', async (req, res) => {
-  const transactions = await getTransactions(req.userType, req.userId);
+  const { transactions } = getTransactions(req.userType);
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -176,7 +72,7 @@ router.get('/forecast', async (req, res) => {
 
 // GET /finance/recurring
 router.get('/recurring', async (req, res) => {
-  const transactions = await getTransactions(req.userType, req.userId);
+  const { transactions } = getTransactions(req.userType);
   const recurring = detectRecurringPayments(transactions);
   res.json({ recurring, count: recurring.length });
 });
