@@ -82,7 +82,13 @@ Bank balance alone is misleading: tax reserves and upcoming bills aren’t set a
 
 ---
 
-## How to run it
+## How to run the app
+
+Go to: https://hackeurope2026.vercel.app
+
+---
+
+## How to run the code
 
 **Frontend**
 
