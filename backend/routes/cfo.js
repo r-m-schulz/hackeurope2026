@@ -4,6 +4,7 @@ const Groq = require('groq-sdk');
 const supabaseAdmin = require('../supabaseAdmin');
 const supabase = require('../supabaseClient');
 const { getTaxConfig } = require('../lib/tax-config');
+const { buildAppData } = require('../lib/app-data-builder');
 const { parseIntent, computeCFOAnswer, getRuleBasedSavings, formatAnswerText } = require('../lib/cfo-engine');
 const { SYSTEM_PROMPT, buildUserMessage } = require('../lib/buildAffordabilityPrompt');
 
@@ -27,45 +28,6 @@ async function optionalAuth(req, res, next) {
 
 router.use(validateUserTypeOptional);
 router.use(optionalAuth);
-
-async function getTransactions(userType) {
-  const { data, error } = await supabaseAdmin
-    .from('transactions')
-    .select('*')
-    .eq('user_type', userType);
-  if (error) throw error;
-  return data;
-}
-
-async function getSubscriptions(userId) {
-  if (!userId) return [];
-  const { data, error } = await supabaseAdmin
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', userId);
-  if (error) throw error;
-  return data.map(s => ({
-    id: s.id,
-    merchant: s.merchant,
-    amount: Number(s.amount),
-    nextDueDate: s.next_due_date,
-    frequency: s.frequency,
-  }));
-}
-
-async function buildAppData(userType, userId = null) {
-  const [transactions, subscriptions] = await Promise.all([
-    getTransactions(userType),
-    getSubscriptions(userId),
-  ]);
-  const seedMeta = getSeedMeta(userType);
-  return {
-    transactions,
-    subscriptions,
-    currentBalance: seedMeta.currentBalance,
-    taxConfig: getTaxConfig(userType),
-  };
-}
 
 function normalizeAppData(appData) {
   if (appData && appData.taxConfig && appData.taxConfig.type == null) {

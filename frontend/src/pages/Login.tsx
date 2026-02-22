@@ -13,7 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const sideStats = [
   { value: "€0", label: "Surprise tax bills" },
