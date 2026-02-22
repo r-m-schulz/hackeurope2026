@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getToken, getUserType } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { usePlaidLink } from "react-plaid-link";
+import { PocketCFOLogo } from "@/components/PocketCFOLogo";
 import {
     Landmark,
     PenLine,
@@ -96,9 +97,7 @@ export default function Setup() {
             {/* Nav */}
             <header className="flex items-center justify-between px-6 py-4 border-b border-[#0a0a0a]/8 dark:border-white/8">
                 <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#76b900] font-black text-sm text-[#0a0a0a]">
-                        TB
-                    </div>
+                    <PocketCFOLogo size={32} className="text-[#0a0a0a] dark:text-white" />
                     <span className="font-bold tracking-tight text-[#0a0a0a] dark:text-white">
                         PocketCFO
                     </span>

@@ -160,15 +160,20 @@ export function SavingsStream({
         Proactive suggestions from your CFO. Informational only; verify with a professional.
       </p>
 
-      {/* Two-column layout: free left, pro right */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:divide-x lg:divide-border/60">
-
-        {/* LEFT — free rule-based savings */}
-        <div className="lg:pr-6">
-          <div className="flex items-center gap-2 mb-3">
+      {/* Two-column layout: free left, pro right
+          On large screens we render headers + scroll areas as aligned grid rows,
+          so the scroll "cutoff" line up perfectly across both columns. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+        {/* LEFT header */}
+        <div className="lg:col-start-1 lg:row-start-1 lg:pr-6 pb-3">
+          <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-foreground">Suggestions</h3>
           </div>
-          <div className="overflow-y-auto max-h-[28rem] pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border space-y-4">
+        </div>
+
+        {/* LEFT list */}
+        <div className="lg:col-start-1 lg:row-start-2 lg:pr-6">
+          <div className="overflow-y-auto max-h-[28rem] lg:h-[28rem] pr-1 pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border space-y-4">
             {visibleFree.map((item) => (
               <SavingsCard
                 key={item.id}
@@ -185,8 +190,8 @@ export function SavingsStream({
           </div>
         </div>
 
-        {/* RIGHT — AI personalised Pro savings */}
-        <div className="lg:pl-6 mt-6 lg:mt-0 pt-5 lg:pt-0 border-t border-border/60 lg:border-t-0">
+        {/* RIGHT header */}
+        <div className="lg:col-start-2 lg:row-start-1 lg:pl-6 lg:border-l lg:border-border/60 mt-6 lg:mt-0 pt-5 lg:pt-0 pb-3 border-t border-border/60 lg:border-t-0">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-[#76b900]" />
             <h3 className="text-sm font-semibold text-foreground">AI Personalised Savings</h3>
@@ -194,28 +199,31 @@ export function SavingsStream({
               PRO
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mb-3">
+          <p className="text-xs text-muted-foreground">
             Tax loopholes, legal grey areas, and cheaper subscription alternatives — from your real data.
           </p>
+        </div>
 
-          {/* Upgrade banner pinned above the cards when not pro */}
-          {!getIsPro() && (
-            <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-[#76b900]/30 bg-[#76b900]/5">
-              <div className="flex items-center gap-2">
-                <Zap className="h-3.5 w-3.5 text-[#76b900] shrink-0" />
-                <span className="text-xs font-medium text-[#76b900]">Unlock personalised AI savings</span>
+        {/* RIGHT list */}
+        <div className="lg:col-start-2 lg:row-start-2 lg:pl-6 lg:border-l lg:border-border/60">
+          <div className="overflow-y-auto max-h-[28rem] lg:h-[28rem] pr-1 pb-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border">
+            {/* Upgrade banner pinned above the cards when not pro */}
+            {!getIsPro() && (
+              <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-[#76b900]/30 bg-[#76b900]/5">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-3.5 w-3.5 text-[#76b900] shrink-0" />
+                  <span className="text-xs font-medium text-[#76b900]">Unlock personalised AI savings</span>
+                </div>
+                <Link
+                  to="/subscribe"
+                  className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs bg-[#76b900] text-[#0a0a0a] hover:brightness-110 hover:scale-[1.015] active:scale-[0.985] transition-all duration-150"
+                  style={{ boxShadow: "0 0 14px rgba(118,185,0,0.25)" }}
+                >
+                  Upgrade to Pro
+                </Link>
               </div>
-              <Link
-                to="/subscribe"
-                className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs bg-[#76b900] text-[#0a0a0a] hover:brightness-110 hover:scale-[1.015] active:scale-[0.985] transition-all duration-150"
-                style={{ boxShadow: "0 0 14px rgba(118,185,0,0.25)" }}
-              >
-                Upgrade to Pro
-              </Link>
-            </div>
-          )}
+            )}
 
-          <div className="overflow-y-auto max-h-[28rem] pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border">
             {getIsPro() ? (
               <ProSavingsContent
                 proItems={proItems}
@@ -239,7 +247,6 @@ export function SavingsStream({
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
