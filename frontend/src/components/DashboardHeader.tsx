@@ -24,12 +24,7 @@ export function DashboardHeader() {
     navigate("/login");
   }
 
-  const accountLabel =
-    userType === "sme"
-      ? "SME"
-      : userType === "startup"
-        ? "Startup"
-        : "Individual";
+  const accountLabel = userType === "sme" ? "SME" : "Individual";
 
   return (
     <header className="border-b border-border bg-card">
