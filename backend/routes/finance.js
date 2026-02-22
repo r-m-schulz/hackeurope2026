@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const supabaseAdmin = require('../supabaseAdmin');
-const { getLabels } = require('../lib/tax-config');
+const plaidClient = require('../lib/plaid-client');
+const { getTaxConfig, getLabels } = require('../lib/tax-config');
 const { requireAuth } = require('../lib/auth-middleware');
 const {
   detectRecurringPayments,
@@ -11,7 +12,6 @@ const {
   generateAIInsight,
   getCashRunwayFromAppData,
 } = require('../lib/finance-engine');
-const { getTransactions, getBalance, buildAppData } = require('../lib/app-data-builder');
 
 // All finance routes require auth. requireAuth sets req.userId and req.userType from JWT.
 router.use(requireAuth);
@@ -178,7 +178,7 @@ router.put('/settings', requireAuth, async (req, res) => {
 
 // GET /finance/transactions
 router.get('/transactions', async (req, res) => {
-  const { transactions } = getTransactions(req.userType);
+  const transactions = await getTransactions(req.userType, req.userId);
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -195,7 +195,7 @@ router.get('/forecast', async (req, res) => {
 
 // GET /finance/recurring
 router.get('/recurring', async (req, res) => {
-  const { transactions } = getTransactions(req.userType);
+  const transactions = await getTransactions(req.userType, req.userId);
   const recurring = detectRecurringPayments(transactions);
   res.json({ recurring, count: recurring.length });
 });

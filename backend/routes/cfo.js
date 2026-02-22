@@ -4,7 +4,6 @@ const Groq = require('groq-sdk');
 const supabaseAdmin = require('../supabaseAdmin');
 const supabase = require('../supabaseClient');
 const { getTaxConfig } = require('../lib/tax-config');
-const { buildAppData } = require('../lib/app-data-builder');
 const { parseIntent, computeCFOAnswer, getRuleBasedSavings, formatAnswerText } = require('../lib/cfo-engine');
 const { SYSTEM_PROMPT, buildUserMessage } = require('../lib/buildAffordabilityPrompt');
 const { CFO_INSIGHTS_SYSTEM_PROMPT, buildCFOInsightsUserMessage } = require('../lib/buildCFOInsightsPrompt');
