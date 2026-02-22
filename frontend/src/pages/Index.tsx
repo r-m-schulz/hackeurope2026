@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BrainCircuit } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import { api } from "@/lib/api";
-import { getToken, getUserType, clearAuth } from "@/lib/auth";
+import { getToken, getUserType, clearAuth, saveProStatus } from "@/lib/auth";
+import { ProGate } from "@/components/ProGate";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { MetricCards } from "@/components/MetricCards";
 import { ForecastChart } from "@/components/ForecastChart";
@@ -18,7 +19,7 @@ import { AIInsightPanel } from "@/components/AIInsightPanel";
 import { SavingsStream } from "@/components/SavingsStream";
 import { AffordabilityAdvisor } from "@/components/AffordabilityAdvisor";
 import { getRuleBasedSavings } from "@/lib/savingsHeuristics";
-import type { AppData } from "@/lib/types";
+import type { AppData, CFOInsightsSnapshot } from "@/lib/types";
 import type { AffordabilityInput } from "@/utils/buildAffordabilityPrompt";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,15 +33,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Landmark, Building2, CheckCircle2, Loader2 } from "lucide-react";
+import { Landmark, Building2, CheckCircle2, Loader2, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const token = getToken()!;
   const userType = getUserType() ?? "sme";
   const [affordabilityOpen, setAffordabilityOpen] = useState(false);
+  const [cfoBarQuery, setCfoBarQuery] = useState("");
+  const [pendingCfoQuery, setPendingCfoQuery] = useState<string | undefined>(undefined);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const [balanceInput, setBalanceInput] = useState("");
 
@@ -74,14 +78,40 @@ const Index = () => {
     queryFn: () => api.runway(userType, token),
   });
 
-  const { data: insightData } = useQuery({
-    queryKey: ["insight", userType],
-    queryFn: () => api.insight(userType, token),
-  });
-
   const { data: subscriptionsData } = useQuery({
     queryKey: ["subscriptions"],
     queryFn: () => api.subscriptions.list(token),
+  });
+
+  const cfoInsightsSnapshot = useMemo((): CFOInsightsSnapshot | null => {
+    if (!summaryData || !runwayData) return null;
+    return {
+      summary: {
+        balance: summaryData.balance ?? 0,
+        estimatedTax: summaryData.estimatedTax ?? 0,
+        trueAvailable: summaryData.trueAvailable ?? 0,
+        recurringTotal: summaryData.recurringTotal ?? 0,
+        riskRatio: summaryData.riskRatio ?? 0,
+      },
+      runway: {
+        days: runwayData.days ?? 0,
+        status: runwayData.status ?? "unknown",
+        monthlyBurn: runwayData.monthlyBurn ?? 0,
+      },
+      forecast: forecastData?.forecast ?? [],
+      breakdown: breakdownData?.breakdown ?? [],
+      transactions: transactionsData?.transactions ?? [],
+      recurring: recurringData?.recurring ?? [],
+      subscriptions: subscriptionsData?.subscriptions ?? [],
+    };
+  }, [summaryData, runwayData, forecastData, breakdownData, transactionsData, recurringData, subscriptionsData]);
+
+  const { data: cfoInsightsData, isLoading: cfoInsightsLoading, isError: cfoInsightsError } = useQuery({
+    queryKey: ["cfo-insights", userType],
+    queryFn: () => api.cfo.insights({ financialSnapshot: cfoInsightsSnapshot!, userType }, token),
+    enabled: !!cfoInsightsSnapshot,
+    staleTime: 5 * 60_000,
+    retry: 1,
   });
 
   const { data: savingsData } = useQuery({
@@ -178,6 +208,14 @@ const Index = () => {
     if (linkToken && plaidReady) openPlaid();
   }, [linkToken, plaidReady, openPlaid]);
 
+  // Handle Stripe checkout success redirect
+  useEffect(() => {
+    if (searchParams.get("checkout") !== "success") return;
+    saveProStatus(true);
+    toast.success("Welcome to Pro! AI insights and forecasting are now unlocked.");
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   async function handleConnectBank() {
     setConnectingBank(true);
     try {
@@ -218,18 +256,35 @@ const Index = () => {
         {/* Affordability Advisor entry point */}
         <section className="flex justify-center pt-2">
           <div className="w-full max-w-3xl">
-            <button
-              type="button"
-              onClick={() => setAffordabilityOpen(true)}
-              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 hover:shadow-md transition-all duration-200 text-left"
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const q = cfoBarQuery.trim();
+                setPendingCfoQuery(q || undefined);
+                setCfoBarQuery("");
+                setAffordabilityOpen(true);
+              }}
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 hover:shadow-md focus-within:bg-primary/10 focus-within:border-primary/50 focus-within:shadow-md transition-all duration-200"
             >
               <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
                 <BrainCircuit className="h-4 w-4" />
               </span>
-              <span className="text-sm text-muted-foreground flex-1">
-                Ask the Affordability Advisor… e.g. &quot;Can I afford a dog?&quot; or &quot;Can I afford a €2,500/month hire?&quot;
-              </span>
-            </button>
+              <input
+                type="text"
+                value={cfoBarQuery}
+                onChange={(e) => setCfoBarQuery(e.target.value)}
+                placeholder='Ask PocketCFO… e.g. "Can I afford a dog?" or "Can I afford a €2,500/month hire?"'
+                className="flex-1 bg-transparent border-none outline-none text-sm text-foreground placeholder:text-muted-foreground"
+              />
+              <button
+                type="button"
+                onClick={() => setAffordabilityOpen(true)}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium transition-colors"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Open chat
+              </button>
+            </form>
           </div>
         </section>
 
@@ -337,7 +392,13 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <TaxVault estimatedTax={summary.estimatedTax} balance={summary.balance} />
           <CashRunway days={runwayData?.days ?? 0} />
-          <AIInsightPanel insightText={insightData?.insight ?? "Loading insight..."} />
+          <ProGate label="AI insights — Pro feature">
+            <AIInsightPanel
+              insights={cfoInsightsData?.insights ?? []}
+              isLoading={cfoInsightsLoading}
+              isError={cfoInsightsError}
+            />
+          </ProGate>
         </div>
 
         {/* Savings & Optimizations – below Tax Vault / Runway */}
@@ -361,6 +422,8 @@ const Index = () => {
         open={affordabilityOpen}
         onClose={() => setAffordabilityOpen(false)}
         input={affordabilityInput}
+        initialQuery={pendingCfoQuery}
+        onInitialQueryConsumed={() => setPendingCfoQuery(undefined)}
       />
     </div>
   );

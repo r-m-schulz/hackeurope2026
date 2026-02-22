@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { saveAuth } from "@/lib/auth";
+import { saveAuth, saveProStatus } from "@/lib/auth";
+import { api } from "@/lib/api";
 import type { UserType } from "@/lib/api";
 import {
   Eye,
   EyeOff,
   ArrowRight,
-  PiggyBank,
   Building2,
   User,
   CheckCircle,
   Zap,
 } from "lucide-react";
+import { PocketCFOLogo } from "@/components/PocketCFOLogo";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -61,6 +62,15 @@ export default function Login() {
       if (!res.ok) throw new Error(data.error || "Something went wrong");
 
       saveAuth(data.access_token, data.user_type);
+
+      // Fetch and cache subscription status
+      try {
+        const status = await api.stripe.subscriptionStatus(data.access_token);
+        saveProStatus(status.isPro);
+      } catch {
+        saveProStatus(false);
+      }
+
       navigate(tab === "signup" ? "/setup" : "/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -85,14 +95,12 @@ export default function Login() {
         </div>
 
         {/* Logo */}
-        <div className="relative flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[#76b900]">
-            <PiggyBank className="h-5 w-5 text-[#0a0a0a]" />
-          </div>
+        <Link to="/" className="relative flex items-center gap-3 transition-opacity hover:opacity-75">
+          <PocketCFOLogo size={36} className="text-white" />
           <span className="text-white font-bold text-lg tracking-tight">
-            TrueBalance
+            PocketCFO
           </span>
-        </div>
+        </Link>
 
         {/* Main content */}
         <div className="relative">
@@ -139,7 +147,7 @@ export default function Login() {
         <div className="relative">
           <div className="h-px bg-gradient-to-r from-[#76b900]/40 via-[#76b900]/60 to-transparent mb-5" />
           <p className="text-xs text-white/25">
-            © 2026 TrueBalance · Built for HackEurope
+            © 2026 PocketCFO · Built for HackEurope
           </p>
         </div>
       </div>
@@ -152,11 +160,9 @@ export default function Login() {
             to="/"
             className="flex items-center gap-2.5 mb-8 lg:hidden transition-opacity hover:opacity-75"
           >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[#76b900]">
-              <PiggyBank className="h-4 w-4 text-[#0a0a0a]" />
-            </div>
+            <PocketCFOLogo size={32} className="text-[#0a0a0a] dark:text-white" />
             <span className="font-bold text-[#0a0a0a] dark:text-white tracking-tight">
-              TrueBalance
+              PocketCFO
             </span>
           </Link>
 

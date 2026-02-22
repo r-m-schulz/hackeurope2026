@@ -9,7 +9,7 @@ router.post('/create-link-token', requireAuth, async (req, res) => {
   try {
     const response = await plaidClient.linkTokenCreate({
       user: { client_user_id: req.userId },
-      client_name: 'TrueBalance',
+      client_name: 'PocketCFO',
       products: ['transactions'],
       country_codes: ['IE', 'GB'],
       language: 'en',
@@ -33,12 +33,47 @@ router.post('/exchange-token', requireAuth, async (req, res) => {
 
     const { error } = await supabaseAdmin
       .from('user_profiles')
-      .update({ plaid_access_token: access_token, plaid_item_id: item_id })
-      .eq('user_id', req.userId);
+      .upsert(
+        { user_id: req.userId, user_type: req.userType, plaid_access_token: access_token, plaid_item_id: item_id },
+        { onConflict: 'user_id' }
+      );
 
     if (error) {
       console.error('Supabase update error:', error);
       return res.status(500).json({ error: 'Failed to save Plaid connection' });
+    }
+
+    // Trigger a transactions refresh and then poll until data is ready (handles sandbox async sync).
+    // We wait here so the frontend immediately gets real data when it refetches after this call returns.
+    try {
+      await plaidClient.transactionsRefresh({ access_token });
+      console.log('[Plaid] transactionsRefresh triggered, polling for data...');
+
+      const today = new Date().toISOString().split('T')[0];
+      const start = new Date();
+      start.setDate(start.getDate() - 90);
+      const startDate = start.toISOString().split('T')[0];
+
+      for (let i = 0; i < 8; i++) {
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          const check = await plaidClient.transactionsGet({ access_token, start_date: startDate, end_date: today });
+          if (check.data.total_transactions > 0) {
+            console.log(`[Plaid] transactions ready: ${check.data.total_transactions} total`);
+            break;
+          }
+          console.log(`[Plaid] poll ${i + 1}/8: still 0 transactions, waiting...`);
+        } catch (pollErr) {
+          const code = pollErr.response?.data?.error_code;
+          if (code === 'PRODUCT_NOT_READY') {
+            console.log(`[Plaid] poll ${i + 1}/8: PRODUCT_NOT_READY, waiting...`);
+          } else {
+            break; // unexpected error, stop polling
+          }
+        }
+      }
+    } catch (refreshErr) {
+      console.warn('[Plaid] transactionsRefresh failed:', refreshErr.response?.data?.error_code || refreshErr.message);
     }
 
     res.json({ status: 'connected' });

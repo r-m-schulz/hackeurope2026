@@ -16,6 +16,129 @@ const { getTransactions, getBalance, buildAppData } = require('../lib/app-data-b
 // All finance routes require auth. requireAuth sets req.userId and req.userType from JWT.
 router.use(requireAuth);
 
+// Normalise a Plaid transaction into the shape the finance engine expects.
+// Plaid convention: positive amount = money leaving the account (expense),
+//                  negative amount = money entering the account (income).
+function normalisePlaidTransaction(tx) {
+  return {
+    id: tx.transaction_id,
+    type: tx.amount > 0 ? 'expense' : 'income',
+    amount: Math.abs(tx.amount),
+    merchant: tx.merchant_name || tx.name,
+    category:
+      tx.personal_finance_category?.primary ||
+      (tx.category && tx.category[0]) ||
+      'Other',
+    date: tx.date,
+  };
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchPlaidTransactions(accessToken, { retries = 4, retryDelayMs = 2000 } = {}) {
+  const today = new Date();
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 90);
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await plaidClient.transactionsGet({
+        access_token: accessToken,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: today.toISOString().split('T')[0],
+      });
+      const txs = response.data.transactions;
+      console.log(`[Plaid] fetched ${txs.length} transactions (attempt ${attempt})`);
+      return txs.map(normalisePlaidTransaction);
+    } catch (err) {
+      const plaidErr = err.response?.data;
+      if (plaidErr?.error_code === 'PRODUCT_NOT_READY' && attempt < retries) {
+        console.warn(`[Plaid] PRODUCT_NOT_READY — retrying in ${retryDelayMs}ms (attempt ${attempt}/${retries})`);
+        await sleep(retryDelayMs);
+        continue;
+      }
+      console.error('[Plaid] transactionsGet error:', plaidErr || err.message);
+      if (plaidErr?.error_code === 'PRODUCT_NOT_READY') {
+        return []; // still not ready after all retries — return empty gracefully
+      }
+      throw err;
+    }
+  }
+}
+
+// Returns transactions from Plaid if the user has connected their bank,
+// otherwise returns only transactions belonging to this user (empty for new users).
+// Seed data is never shown to authenticated users who haven't connected a bank.
+async function getTransactions(_userType, userId = null) {
+  if (userId) {
+    const { data: profile } = await supabaseAdmin
+      .from('user_profiles')
+      .select('plaid_access_token')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (profile?.plaid_access_token) {
+      return fetchPlaidTransactions(profile.plaid_access_token);
+    }
+
+    // No bank connected — return only this user's own transactions (empty for new users)
+    const { data, error } = await supabaseAdmin
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId);
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  // No userId (should not happen given requireAuth, but guard anyway)
+  return [];
+}
+
+async function getBalance(userId) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('user_settings')
+      .select('current_balance')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) return null;
+    return data ? Number(data.current_balance) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function getSubscriptions(userId) {
+  const { data, error } = await supabaseAdmin
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+  if (error) throw error;
+  // Map DB column names to frontend shape
+  return data.map(s => ({
+    id: s.id,
+    merchant: s.merchant,
+    amount: Number(s.amount),
+    nextDueDate: s.next_due_date,
+    frequency: s.frequency,
+  }));
+}
+
+async function buildAppData(userType, userId = null) {
+  const [transactions, subscriptions, currentBalance] = await Promise.all([
+    getTransactions(userType, userId),
+    getSubscriptions(userId),
+    getBalance(userId),
+  ]);
+  return {
+    transactions,
+    subscriptions,
+    currentBalance,
+    taxConfig: getTaxConfig(userType),
+  };
+}
+
 // GET /finance/summary
 router.get('/summary', async (req, res) => {
   const appData = await buildAppData(req.userType, req.userId);

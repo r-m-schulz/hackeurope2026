@@ -27,8 +27,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-// IMPORTANT: do NOT add app.options('*'...) or app.options('/*'...) on your setup (it crashes on Render)
+// Stripe webhook must receive raw body — mount before express.json()
+app.use('/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
 app.use((req, _res, next) => {
@@ -41,6 +41,7 @@ app.use('/finance', require('./routes/finance'));
 app.use('/subscriptions', require('./routes/subscriptions'));
 app.use('/plaid', require('./routes/plaid'));
 app.use('/cfo', require('./routes/cfo'));
+app.use('/stripe', require('./routes/stripe'));
 
 app.get('/', (_req, res) => {
   res.json({ message: 'hackeurope2026 API!' });

@@ -7,6 +7,7 @@ const { getTaxConfig } = require('../lib/tax-config');
 const { buildAppData } = require('../lib/app-data-builder');
 const { parseIntent, computeCFOAnswer, getRuleBasedSavings, formatAnswerText } = require('../lib/cfo-engine');
 const { SYSTEM_PROMPT, buildUserMessage } = require('../lib/buildAffordabilityPrompt');
+const { CFO_INSIGHTS_SYSTEM_PROMPT, buildCFOInsightsUserMessage } = require('../lib/buildCFOInsightsPrompt');
 
 function validateUserTypeOptional(req, res, next) {
   const userType = req.query.user_type || req.body?.user_type;
@@ -28,6 +29,59 @@ async function optionalAuth(req, res, next) {
 
 router.use(validateUserTypeOptional);
 router.use(optionalAuth);
+
+async function getTransactions(userType) {
+  const { data, error } = await supabaseAdmin
+    .from('transactions')
+    .select('*')
+    .eq('user_type', userType);
+  if (error) throw error;
+  return data;
+}
+
+async function getSubscriptions(userId) {
+  if (!userId) return [];
+  const { data, error } = await supabaseAdmin
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+  if (error) throw error;
+  return data.map(s => ({
+    id: s.id,
+    merchant: s.merchant,
+    amount: Number(s.amount),
+    nextDueDate: s.next_due_date,
+    frequency: s.frequency,
+  }));
+}
+
+async function getBalance(userId) {
+  if (!userId) return null;
+  try {
+    const { data } = await supabaseAdmin
+      .from('user_settings')
+      .select('current_balance')
+      .eq('user_id', userId)
+      .maybeSingle();
+    return data ? Number(data.current_balance) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function buildAppData(userType, userId = null) {
+  const [transactions, subscriptions, currentBalance] = await Promise.all([
+    getTransactions(userType),
+    getSubscriptions(userId),
+    getBalance(userId),
+  ]);
+  return {
+    transactions,
+    subscriptions,
+    currentBalance,
+    taxConfig: getTaxConfig(userType),
+  };
+}
 
 function normalizeAppData(appData) {
   if (appData && appData.taxConfig && appData.taxConfig.type == null) {
@@ -147,9 +201,14 @@ router.post('/affordability', async (req, res) => {
     console.log('[Groq affordability] raw response:', raw);
     let parsed;
     try {
-      const jsonStr = raw.replace(/^[^]*?(\{[\s\S]*\})[^]*$/, '$1');
-      parsed = JSON.parse(jsonStr);
+      // Strip <think>...</think> blocks that some reasoning models emit
+      const stripped = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      // Find the outermost JSON object (last { ... } pair to avoid stray braces in preamble)
+      const match = stripped.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('no JSON object found');
+      parsed = JSON.parse(match[match.length - 1] ?? match[0]);
     } catch (_) {
+      console.error('[Groq affordability] JSON parse failed, raw:', raw.slice(0, 500));
       return res.status(502).json({
         error: 'AI response was not valid JSON.',
         raw: raw.slice(0, 500),
@@ -188,6 +247,80 @@ router.post('/affordability', async (req, res) => {
   } catch (err) {
     console.error('CFO affordability error', err);
     res.status(500).json({ error: err.message || 'Affordability request failed.' });
+  }
+});
+
+// POST /cfo/insights — AI-powered CFO insights (Groq)
+// Body: { financialSnapshot: { summary, runway, forecast, breakdown, transactions, recurring, subscriptions }, userType? }
+router.post('/insights', async (req, res) => {
+  try {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'CFO Insights not configured (GROQ_API_KEY missing).' });
+    }
+    const { financialSnapshot, userType } = req.body;
+    if (!financialSnapshot || typeof financialSnapshot !== 'object') {
+      return res.status(400).json({ error: 'financialSnapshot is required.' });
+    }
+
+    const resolvedUserType = userType || req.userType || 'sme';
+    const userMessage = buildCFOInsightsUserMessage({ ...financialSnapshot, userType: resolvedUserType });
+
+    console.log('[Groq insights] building insights for userType:', resolvedUserType);
+
+    const client = new Groq({ apiKey });
+    const completion = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        { role: 'system', content: CFO_INSIGHTS_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.3,
+      max_tokens: 800,
+      response_format: { type: 'json_object' },
+    });
+
+    const raw = completion.choices?.[0]?.message?.content?.trim() || '';
+    console.log('[Groq insights] raw response:', raw.slice(0, 400));
+
+    let insights;
+    try {
+      // response_format: json_object wraps the array in an object, e.g. {"insights":[...]}
+      // Fall back to finding a bare array if needed
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        insights = parsed;
+      } else if (Array.isArray(parsed.insights)) {
+        insights = parsed.insights;
+      } else {
+        // last resort: find first array value in the object
+        const arrayVal = Object.values(parsed).find(v => Array.isArray(v));
+        if (arrayVal) {
+          insights = arrayVal;
+        } else {
+          throw new Error('No array found in JSON response');
+        }
+      }
+    } catch (_) {
+      console.error('[Groq insights] JSON parse failed, raw:', raw.slice(0, 500));
+      return res.status(502).json({ error: 'AI response was not valid JSON.', raw: raw.slice(0, 500) });
+    }
+
+    // Sanitise each insight
+    const validSeverities = ['info', 'warning', 'critical'];
+    const sanitised = insights
+      .filter(i => i && typeof i.text === 'string' && i.text.trim())
+      .map((i, idx) => ({
+        id: typeof i.id === 'string' ? i.id : `insight-${idx}`,
+        text: i.text.trim(),
+        severity: validSeverities.includes(i.severity) ? i.severity : 'info',
+        category: typeof i.category === 'string' ? i.category : 'general',
+      }));
+
+    res.json({ insights: sanitised });
+  } catch (err) {
+    console.error('CFO insights error', err);
+    res.status(500).json({ error: err.message || 'CFO insights failed.' });
   }
 });
 

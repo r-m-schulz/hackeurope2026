@@ -100,7 +100,7 @@ export default function Setup() {
                         TB
                     </div>
                     <span className="font-bold tracking-tight text-[#0a0a0a] dark:text-white">
-                        TrueBalance
+                        PocketCFO
                     </span>
                 </div>
                 <button
@@ -226,7 +226,7 @@ export default function Setup() {
                             <Lock className="h-4 w-4 text-[#76b900] shrink-0 mt-0.5" />
                             <p className="text-xs text-[#0a0a0a]/55 dark:text-white/50 leading-relaxed">
                                 <span className="font-semibold text-[#0a0a0a]/70 dark:text-white/65">Read-only access.</span>{" "}
-                                Your credentials go directly to your bank via Plaid — TrueBalance never sees them. You can disconnect at any time.
+                                Your credentials go directly to your bank via Plaid — PocketCFO never sees them. You can disconnect at any time.
                             </p>
                         </div>
 
@@ -272,7 +272,7 @@ export default function Setup() {
                                 Enter your numbers
                             </h1>
                             <p className="text-sm text-[#0a0a0a]/45 dark:text-white/40">
-                                These give TrueBalance enough to calculate your true cash position.
+                                These give PocketCFO enough to calculate your true cash position.
                             </p>
                         </div>
 

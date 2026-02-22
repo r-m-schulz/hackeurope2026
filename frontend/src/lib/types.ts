@@ -111,6 +111,35 @@ export interface AffordabilitySummary {
   riskStatus: string;
 }
 
+/** Single AI-generated CFO insight */
+export interface CFOInsight {
+  id: string;
+  text: string;
+  severity: "info" | "warning" | "critical";
+  category: string;
+}
+
+export interface CFOInsightsResponse {
+  insights: CFOInsight[];
+}
+
+/** Financial snapshot sent to /cfo/insights */
+export interface CFOInsightsSnapshot {
+  summary: {
+    balance: number;
+    estimatedTax: number;
+    trueAvailable: number;
+    recurringTotal: number;
+    riskRatio: number;
+  };
+  runway: { days: number; status: string; monthlyBurn: number };
+  forecast: { date: string; projected: number }[];
+  breakdown: { category: string; amount: number }[];
+  transactions: Transaction[];
+  recurring: RecurringPayment[];
+  subscriptions: ManualSubscription[];
+}
+
 /** Affordability Advisor AI response */
 export interface AffordabilityAdvisorResponse {
   verdict: "AFFORD" | "CANNOT_AFFORD" | "RISKY";

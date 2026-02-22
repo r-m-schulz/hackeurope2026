@@ -1,4 +1,4 @@
-import type { FinancialSummary, ForecastDay, ExpenseBreakdown, RecurringPayment, Transaction, ManualSubscription, AppData, CFOQueryInput, CFOQueryResponse, CFOSavingsResponse, AffordabilitySummary, AffordabilityAdvisorResponse } from "./types";
+import type { FinancialSummary, ForecastDay, ExpenseBreakdown, RecurringPayment, Transaction, ManualSubscription, AppData, CFOQueryInput, CFOQueryResponse, CFOSavingsResponse, AffordabilitySummary, AffordabilityAdvisorResponse, CFOInsightsResponse, CFOInsightsSnapshot } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -116,6 +116,11 @@ export const api = {
       },
       token: string
     ) => post<AffordabilityAdvisorResponse>("/cfo/affordability", body, token),
+
+    insights: (
+      body: { financialSnapshot: CFOInsightsSnapshot; userType?: string },
+      token: string
+    ) => post<CFOInsightsResponse>("/cfo/insights", body, token),
   },
 
   plaid: {
@@ -127,5 +132,13 @@ export const api = {
 
     exchangeToken: (public_token: string, token: string) =>
       post<{ status: string }>("/plaid/exchange-token", { public_token }, token),
+  },
+
+  stripe: {
+    createCheckoutSession: (token: string) =>
+      post<{ url: string }>("/stripe/create-checkout-session", {}, token),
+
+    subscriptionStatus: (token: string) =>
+      get<{ isPro: boolean; status: string }>("/stripe/subscription-status", undefined, token),
   },
 };

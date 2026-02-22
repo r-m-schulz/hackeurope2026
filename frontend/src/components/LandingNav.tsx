@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import { PocketCFOLogo } from "@/components/PocketCFOLogo";
 
 export function LandingNav() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -10,11 +11,9 @@ export function LandingNav() {
     <header className="sticky top-0 z-50 backdrop-blur-xl border-b border-[#76b900]/15 bg-[#f5f5f5]/85 dark:bg-[#0a0a0a]/85">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-85">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm tracking-tight bg-[#76b900] text-[#0a0a0a]">
-            TB
-          </div>
+          <PocketCFOLogo size={32} className="text-[#0a0a0a] dark:text-white" />
           <span className="text-lg font-bold tracking-tight text-[#0a0a0a] dark:text-white">
-            TrueBalance
+            PocketCFO
           </span>
         </Link>
 
@@ -24,6 +23,12 @@ export function LandingNav() {
             className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
           >
             Features
+          </Link>
+          <Link
+            to="/#pricing"
+            className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
+          >
+            Pricing
           </Link>
           <Link
             to="/about"
