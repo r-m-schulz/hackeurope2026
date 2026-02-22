@@ -18,6 +18,7 @@ import { RecurringPayments } from "@/components/RecurringPayments";
 import { AIInsightPanel } from "@/components/AIInsightPanel";
 import { SavingsStream } from "@/components/SavingsStream";
 import { AffordabilityAdvisor } from "@/components/AffordabilityAdvisor";
+import { FundsAllocator } from "@/components/FundsAllocator";
 import { getRuleBasedSavings } from "@/lib/savingsHeuristics";
 import type { AppData, CFOInsightsSnapshot } from "@/lib/types";
 import type { AffordabilityInput } from "@/utils/buildAffordabilityPrompt";
@@ -404,6 +405,14 @@ const Index = () => {
         {/* Savings & Optimizations – below Tax Vault / Runway */}
         <section className="rounded-2xl border border-border bg-card/50 p-6">
           <SavingsStream items={savingsItems} />
+        </section>
+
+        {/* Funds allocator – same width as content below (transactions level) */}
+        <section className="w-full">
+          <FundsAllocator
+            trueAvailable={summary.trueAvailable}
+            transactions={transactionsData?.transactions ?? []}
+          />
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
