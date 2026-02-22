@@ -30,6 +30,15 @@ import {
 import { formatCurrency } from "@/lib/finance-engine";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -159,6 +168,15 @@ export function FundsAllocator({ trueAvailable, transactions = [], className }: 
     setNewIconKey(ICON_KEYS[0]);
     setNewColor(ALLOCATOR_COLORS[0]);
     setAddOpen(false);
+  };
+
+  const handleAddDialogOpenChange = (open: boolean) => {
+    setAddOpen(open);
+    if (!open) {
+      setNewLabel("");
+      setNewIconKey(ICON_KEYS[0]);
+      setNewColor(ALLOCATOR_COLORS[0]);
+    }
   };
 
   const removeCategory = (id: string) => {
@@ -314,82 +332,101 @@ export function FundsAllocator({ trueAvailable, transactions = [], className }: 
           );
         })}
 
-        {addOpen ? (
-          <div className="rounded-lg border border-dashed border-border bg-secondary/30 p-4 w-full space-y-4">
-            <div className="flex w-full gap-4 items-end">
-              <div className="flex-1 min-w-0 space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Category name</Label>
-                <Input
-                  placeholder="e.g. Holiday, Equipment…"
-                  value={newLabel}
-                  onChange={(e) => setNewLabel(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addCategory()}
-                  className="h-9 w-full"
-                />
+        <Dialog open={addOpen} onOpenChange={handleAddDialogOpenChange}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-lg border-dashed py-5 gap-2 text-muted-foreground hover:text-foreground text-sm"
+            >
+              <Plus className="h-4 w-4" />
+              {categories.length === 0 ? "Add your first category" : "Add another category"}
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[850px]">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                addCategory();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  addCategory();
+                }
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>Add category</DialogTitle>
+                <DialogDescription>
+                  Name your category, pick an icon and a colour. It will appear in the list and in the allocation bar.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="allocator-category-name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="allocator-category-name"
+                    placeholder="e.g. Holiday, Equipment…"
+                    value={newLabel}
+                    onChange={(e) => setNewLabel(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-start gap-4">
+                  <Label className="text-right pt-2">Icon</Label>
+                  <div className="col-span-3 grid grid-cols-[repeat(11,minmax(0,1fr))] gap-1.5">
+                    {ICON_KEYS.map((key) => {
+                      const Icon = ICON_MAP[key];
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setNewIconKey(key)}
+                          className={cn(
+                            "flex h-9 w-full min-w-0 items-center justify-center rounded-lg border transition-colors aspect-square",
+                            newIconKey === key
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "bg-background border-border hover:bg-muted"
+                          )}
+                          title={key}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Colour</Label>
+                  <div className="col-span-3 flex flex-wrap gap-2">
+                    {ALLOCATOR_COLORS.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setNewColor(c)}
+                        className={cn(
+                          "h-9 w-9 rounded-lg border-2 transition-all shrink-0",
+                          newColor === c ? "border-foreground ring-2 ring-offset-2 ring-foreground/30" : "border-border hover:border-muted-foreground/50"
+                        )}
+                        style={{ backgroundColor: c }}
+                        title="Category colour in list and bar"
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <Button type="button" size="sm" onClick={addCategory} className="rounded-lg">
-                  Add
-                </Button>
-                <Button type="button" size="sm" variant="ghost" onClick={() => { setAddOpen(false); setNewLabel(""); }} className="rounded-lg">
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => handleAddDialogOpenChange(false)}>
                   Cancel
                 </Button>
-              </div>
-            </div>
-            <div className="w-full space-y-1.5">
-              <Label className="text-xs text-muted-foreground block">Icon</Label>
-              <div className="grid grid-cols-[repeat(11,minmax(0,1fr))] gap-1.5 w-full">
-                {ICON_KEYS.map((key) => {
-                  const Icon = ICON_MAP[key];
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setNewIconKey(key)}
-                      className={cn(
-                        "flex h-9 w-full min-w-0 items-center justify-center rounded-lg border transition-colors aspect-square",
-                        newIconKey === key
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background border-border hover:bg-muted"
-                      )}
-                      title={key}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="w-full space-y-1.5">
-              <Label className="text-xs text-muted-foreground block">Colour</Label>
-              <div className="flex flex-wrap gap-2 w-full">
-                {ALLOCATOR_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setNewColor(c)}
-                    className={cn(
-                      "h-9 w-9 rounded-lg border-2 transition-all shrink-0",
-                      newColor === c ? "border-foreground ring-2 ring-offset-2 ring-foreground/30" : "border-border hover:border-muted-foreground/50"
-                    )}
-                    style={{ backgroundColor: c }}
-                    title="Category colour in list and bar"
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full rounded-lg border-dashed py-5 gap-2 text-muted-foreground hover:text-foreground text-sm"
-            onClick={() => setAddOpen(true)}
-          >
-            <Plus className="h-4 w-4" />
-            {categories.length === 0 ? "Add your first category" : "Add another category"}
-          </Button>
-        )}
+                <Button type="submit">Add</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {totalAllocated > 0 && categories.length > 0 && (
           <div className="pt-4 border-t border-border">
