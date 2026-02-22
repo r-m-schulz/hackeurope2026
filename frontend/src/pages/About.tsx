@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   Target,
   BrainCircuit,
@@ -153,6 +154,11 @@ export default function About() {
     <div className="min-h-screen bg-background">
       <LandingNav />
 
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12 text-center">
         <div className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold mb-6 border border-[#76b900]/40 bg-[#76b900]/10 text-[#76b900]">
@@ -303,6 +309,7 @@ export default function About() {
           </Link>
         </div>
       </section>
+      </motion.div>
     </div>
   );
 }

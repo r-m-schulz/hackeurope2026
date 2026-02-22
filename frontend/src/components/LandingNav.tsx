@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { PocketCFOLogo } from "@/components/PocketCFOLogo";
@@ -11,7 +12,12 @@ export function LandingNav() {
   const isLanding = location.pathname === "/";
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-xl border-b border-[#76b900]/15 bg-[#f5f5f5]/85 dark:bg-[#0a0a0a]/85">
+    <motion.header
+      className="sticky top-0 z-50 backdrop-blur-xl border-b border-[#76b900]/15 bg-[#f5f5f5]/85 dark:bg-[#0a0a0a]/85"
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-85">
           <PocketCFOLogo size={32} className="text-[#0a0a0a] dark:text-white" />
@@ -81,6 +87,6 @@ export function LandingNav() {
           </Link>
         </nav>
       </div>
-    </header>
+    </motion.header>
   );
 }

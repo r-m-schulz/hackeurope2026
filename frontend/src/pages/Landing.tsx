@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   ShieldCheck,
   TrendingUp,
@@ -16,6 +17,18 @@ import {
 } from "lucide-react";
 import { LandingNav } from "@/components/LandingNav";
 import { scrollToSection } from "@/lib/scroll-sections";
+
+const fadeUp = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4 },
+};
+const stagger = { animate: { transition: { staggerChildren: 0.08 } } };
+const fadeIn = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  transition: { duration: 0.35 },
+};
 
 const features = [
   {
@@ -131,29 +144,37 @@ export default function Landing() {
         </div>
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32 sm:pt-32 sm:pb-40">
-          <div className="text-center max-w-4xl mx-auto">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium mb-8 border border-[#76b900]/40 bg-[#76b900]/10 text-[#5a8d00] dark:text-[#76b900]">
+          <motion.div
+            className="text-center max-w-4xl mx-auto"
+            initial="initial"
+            animate="animate"
+            variants={stagger}
+          >
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium mb-8 border border-[#76b900]/40 bg-[#76b900]/10 text-[#5a8d00] dark:text-[#76b900]">
               <Zap className="h-3.5 w-3.5" />
               <span>AI-powered financial clarity</span>
-            </div>
+            </motion.div>
 
-            {/* Headline */}
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6 text-[#0a0a0a] dark:text-white">
+            <motion.h1
+              variants={fadeUp}
+              className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05] mb-6 text-[#0a0a0a] dark:text-white"
+            >
               Your bank balance{" "}
               <span className="text-[#76b900]">lies.</span>
               <br />
               <span className="text-[#0a0a0a]/50 dark:text-white/55">We show the </span>
               <span className="text-[#76b900]">truth.</span>
-            </h1>
+            </motion.h1>
 
-            <p className="text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 text-[#0a0a0a]/60 dark:text-white/60">
+            <motion.p
+              variants={fadeUp}
+              className="text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 text-[#0a0a0a]/60 dark:text-white/60"
+            >
               PocketCFO shows your real available cash after tax reserves and
               recurring payments. So you're never surprised by the numbers.
-            </p>
+            </motion.p>
 
-            {/* CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
               <Link to="/login" state={{ tab: "signup" }}>
                 <button
                   className="flex items-center gap-2 text-base font-bold px-8 h-12 rounded-lg transition-all duration-200 hover:brightness-110 hover:scale-[1.02] active:scale-95 bg-[#76b900] text-[#0a0a0a]"
@@ -168,18 +189,17 @@ export default function Landing() {
                   Log in
                 </button>
               </Link>
-            </div>
+            </motion.div>
 
-            {/* Stats row */}
-            <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-16">
+            <motion.div variants={fadeUp} className="flex flex-wrap items-center justify-center gap-8 sm:gap-16">
               {stats.map(({ value, label }) => (
                 <div key={label} className="text-center">
                   <div className="text-3xl font-black text-[#76b900]">{value}</div>
                   <div className="text-sm mt-0.5 text-[#0a0a0a]/45 dark:text-white/45">{label}</div>
                 </div>
               ))}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#76b900]/30 to-transparent" />
@@ -188,7 +208,13 @@ export default function Landing() {
       {/* Features */}
       <section id="features" className="scroll-mt-10 py-24 sm:py-32 relative">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <motion.div
+            className="text-center mb-16"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={fadeIn}
+          >
             <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium mb-6 border border-[#76b900]/30 bg-[#76b900]/8 text-[#5a8d00] dark:text-[#76b900]">
               <Star className="h-3.5 w-3.5" />
               <span>Everything in one dashboard</span>
@@ -200,12 +226,19 @@ export default function Landing() {
             <p className="mt-4 text-lg max-w-2xl mx-auto text-[#0a0a0a]/55 dark:text-white/50">
               Built for SMEs and individuals who want clarity, not just a balance.
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+          <motion.div
+            className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-40px" }}
+            variants={stagger}
+          >
             {features.map(({ icon: Icon, title, description }) => (
-              <div
+              <motion.div
                 key={title}
+                variants={fadeUp}
                 className="group rounded-2xl p-6 sm:p-7 transition-all duration-300 hover:scale-[1.02] bg-white dark:bg-[#111111] border border-[#76b900]/15 hover:border-[#76b900]/45"
                 style={{ boxShadow: "inset 0 1px 0 rgba(118,185,0,0.05)" }}
               >
@@ -214,11 +247,17 @@ export default function Landing() {
                 </div>
                 <h3 className="text-base font-bold mb-2 text-[#0a0a0a] dark:text-white">{title}</h3>
                 <p className="text-sm leading-relaxed text-[#0a0a0a]/55 dark:text-white/50">{description}</p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
 
-          <div className="mt-14 text-center">
+          <motion.div
+            className="mt-14 text-center"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+            variants={fadeIn}
+          >
             <Link to="/login" state={{ tab: "signup" }}>
               <button
                 className="inline-flex items-center gap-2 h-12 px-8 rounded-lg font-bold text-base transition-all duration-200 hover:brightness-110 hover:scale-[1.02] active:scale-95 bg-[#76b900] text-[#0a0a0a]"
@@ -228,23 +267,44 @@ export default function Landing() {
                 <ArrowRight className="h-4 w-4" />
               </button>
             </Link>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* Pricing – FREE & PRO */}
       <section id="pricing" className="scroll-mt-0 py-24 sm:py-32 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#0a0a0a] dark:text-white mb-4">
+          <motion.h2
+            className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#0a0a0a] dark:text-white mb-4"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={fadeUp}
+          >
             Unlock the full picture of your finances
-          </h2>
-          <p className="text-base text-[#0a0a0a]/55 dark:text-white/50 max-w-lg mx-auto mb-12">
+          </motion.h2>
+          <motion.p
+            className="text-base text-[#0a0a0a]/55 dark:text-white/50 max-w-lg mx-auto mb-12"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-60px" }}
+            variants={fadeUp}
+          >
             Pro gives you AI-powered insights and a 30-day cash forecast — so you always know what's coming.
-          </p>
+          </motion.p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl mx-auto mb-8">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl mx-auto mb-8"
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true, margin: "-40px" }}
+            variants={stagger}
+          >
             {/* FREE */}
-            <div className="rounded-2xl border border-[#0a0a0a]/10 dark:border-white/10 bg-white dark:bg-[#111] p-6 text-left">
+            <motion.div
+              variants={fadeUp}
+              className="rounded-2xl border border-[#0a0a0a]/10 dark:border-white/10 bg-white dark:bg-[#111] p-6 text-left"
+            >
               <p className="text-xs font-semibold text-[#0a0a0a]/40 dark:text-white/35 uppercase tracking-widest mb-1">Free</p>
               <p className="text-3xl font-black text-[#0a0a0a] dark:text-white mb-1">€0</p>
               <p className="text-xs text-[#0a0a0a]/38 dark:text-white/32 mb-5">forever</p>
@@ -256,10 +316,11 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </motion.div>
 
             {/* PRO */}
-            <div
+            <motion.div
+              variants={fadeUp}
               className="rounded-2xl border border-[#76b900]/50 bg-white dark:bg-[#111] p-6 text-left relative overflow-hidden"
               style={{ boxShadow: "0 0 40px rgba(118,185,0,0.12)" }}
             >
@@ -286,8 +347,8 @@ export default function Landing() {
               <p className="text-xs text-[#0a0a0a]/45 dark:text-white/40 mt-2">
                 Sign up on the dashboard to upgrade.
               </p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
           {/* Sign in + Sign up below both plans */}
           <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
@@ -320,7 +381,13 @@ export default function Landing() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] rounded-full blur-[120px] opacity-10 dark:opacity-20 bg-[#76b900]" />
         </div>
 
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <motion.div
+          className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true, margin: "-60px" }}
+          variants={fadeUp}
+        >
           <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium mb-8 border border-[#76b900]/40 bg-[#76b900]/10 text-[#5a8d00] dark:text-[#76b900]">
             <Sparkles className="h-3.5 w-3.5" />
             <span>Start for free, no credit card needed</span>
@@ -348,11 +415,17 @@ export default function Landing() {
               </button>
             </Link>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Footer */}
-      <footer className="py-8 border-t border-[#0a0a0a]/10 dark:border-white/8">
+      <motion.footer
+        className="py-8 border-t border-[#0a0a0a]/10 dark:border-white/8"
+        initial="initial"
+        whileInView="animate"
+        viewport={{ once: true }}
+        variants={fadeIn}
+      >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#76b900]">
@@ -379,7 +452,7 @@ export default function Landing() {
             <Link to="/login" className="hover:text-[#76b900] transition-colors">Log in</Link>
           </div>
         </div>
-      </footer>
+      </motion.footer>
     </div>
   );
 }
