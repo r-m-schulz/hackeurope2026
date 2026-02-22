@@ -95,13 +95,35 @@ const INDIVIDUAL_TAX_THRESHOLD = 17000;
 const INDIVIDUAL_STANDARD_BAND = 44000;
 const INDIVIDUAL_STANDARD_RATE = 0.2;
 const INDIVIDUAL_HIGHER_RATE = 0.4;
+const INDIVIDUAL_PRSI_RATE = 0.042;
+// USC 2026: 0.5% to €12,012 | 2% to €28,700 | 3% to €70,044 | 8% above
+const USC_BAND1 = 12012;
+const USC_BAND2 = 28700;
+const USC_BAND3 = 70044;
 
-/** SME: VAT 23%, corp 12.5%, PRSI 9% on earnings. Individual: income tax from recurring income only, 20% on first €44k, 40% above; no tax if <€17k. */
+function calculateUSC(annualIncome: number): number {
+  if (annualIncome <= 0) return 0;
+  let usc = Math.min(USC_BAND1, annualIncome) * 0.005;
+  if (annualIncome > USC_BAND1) {
+    usc += Math.min(USC_BAND2 - USC_BAND1, annualIncome - USC_BAND1) * 0.02;
+  }
+  if (annualIncome > USC_BAND2) {
+    usc += Math.min(USC_BAND3 - USC_BAND2, annualIncome - USC_BAND2) * 0.03;
+  }
+  if (annualIncome > USC_BAND3) {
+    usc += (annualIncome - USC_BAND3) * 0.08;
+  }
+  return usc;
+}
+
+/** SME: VAT 23%, corp 12.5%, PRSI 9%. Individual: income tax 20%/40%, PRSI 4.2%, USC 2026 bands, from recurring income only. */
 export function estimateTaxes(
   transactions: Transaction[],
   taxConfig?: { type?: string; vatRate?: number; corpTaxRate?: number; prsiRate?: number } | null
 ) {
   const isIndividual = taxConfig?.type === "individual";
+
+  const MONTHLY_DIVISOR = 12;
 
   if (isIndividual) {
     const annualIncome = getAnnualIncomeFromRecurring(transactions);
@@ -109,22 +131,25 @@ export function estimateTaxes(
     if (annualIncome > INDIVIDUAL_TAX_THRESHOLD) {
       const inStandard = Math.min(INDIVIDUAL_STANDARD_BAND, annualIncome);
       const inHigher = Math.max(0, annualIncome - INDIVIDUAL_STANDARD_BAND);
-      incomeTax = inStandard * INDIVIDUAL_STANDARD_RATE + inHigher * INDIVIDUAL_HIGHER_RATE;
+      incomeTax = (inStandard * INDIVIDUAL_STANDARD_RATE + inHigher * INDIVIDUAL_HIGHER_RATE) / MONTHLY_DIVISOR;
     }
-    const total = Math.round(incomeTax * 100) / 100;
+    const prsi = (annualIncome * INDIVIDUAL_PRSI_RATE) / MONTHLY_DIVISOR;
+    const usc = calculateUSC(annualIncome) / MONTHLY_DIVISOR;
+    const total = Math.round((incomeTax + prsi + usc) * 100) / 100;
     return {
       vat: null,
       corpTax: null,
-      prsi: 0,
-      incomeTax: total,
+      prsi: Math.round(prsi * 100) / 100,
+      incomeTax: Math.round(incomeTax * 100) / 100,
+      usc: Math.round(usc * 100) / 100,
       total,
     };
   }
 
   const earnings = transactions.filter((t) => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
-  const vat = earnings * 0.23;
-  const corpTax = earnings * 0.125;
-  const prsi = earnings * 0.09;
+  const vat = (earnings * 0.23) / MONTHLY_DIVISOR;
+  const corpTax = (earnings * 0.125) / MONTHLY_DIVISOR;
+  const prsi = (earnings * 0.09) / MONTHLY_DIVISOR;
   return {
     vat: Math.round(vat * 100) / 100,
     corpTax: Math.round(corpTax * 100) / 100,
@@ -315,6 +340,7 @@ export function calculateSummaryFromAppData(appData: AppData): FinancialSummary 
     estimatedCorpTax: taxes.corpTax ?? null,
     estimatedPRSI: taxes.prsi ?? null,
     estimatedIncomeTax: "incomeTax" in taxes ? taxes.incomeTax ?? null : null,
+    estimatedUSC: "usc" in taxes ? taxes.usc ?? null : null,
     recurringTotal: Math.round(recurringTotal * 100) / 100,
     trueAvailable: Math.round(trueAvailable * 100) / 100,
     riskRatio: Math.round(riskRatio * 100) / 100,

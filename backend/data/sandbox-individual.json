@@ -1,7 +1,7 @@
 {
   "account": {
     "displayName": "Personal Sandbox",
-    "currentBalance": 12400
+    "currentBalance": 6120
   },
   "transactions": [
     { "id": "ind-t1", "date": "2025-01-05", "amount": 3200, "merchant": "Employer Ltd", "type": "income", "category": "Salary" },

@@ -97,19 +97,45 @@ const INDIVIDUAL_TAX_THRESHOLD = 17000;
 const INDIVIDUAL_STANDARD_BAND = 44000;
 const INDIVIDUAL_STANDARD_RATE = 0.20;
 const INDIVIDUAL_HIGHER_RATE = 0.40;
+const INDIVIDUAL_PRSI_RATE = 0.042;
+// USC 2026: 0.5% to €12,012 | 2% to €28,700 | 3% to €70,044 | 8% above
+const USC_BAND1 = 12012;
+const USC_BAND2 = 28700;
+const USC_BAND3 = 70044;
+const USC_RATE1 = 0.005;
+const USC_RATE2 = 0.02;
+const USC_RATE3 = 0.03;
+const USC_RATE4 = 0.08;
+
+function calculateUSC(annualIncome) {
+  if (annualIncome <= 0) return 0;
+  let usc = Math.min(USC_BAND1, annualIncome) * USC_RATE1;
+  if (annualIncome > USC_BAND1) {
+    usc += Math.min(USC_BAND2 - USC_BAND1, annualIncome - USC_BAND1) * USC_RATE2;
+  }
+  if (annualIncome > USC_BAND2) {
+    usc += Math.min(USC_BAND3 - USC_BAND2, annualIncome - USC_BAND2) * USC_RATE3;
+  }
+  if (annualIncome > USC_BAND3) {
+    usc += (annualIncome - USC_BAND3) * USC_RATE4;
+  }
+  return usc;
+}
 
 function estimateTaxes(transactions, taxConfig) {
   const earnings = transactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0);
 
+  const MONTHLY_DIVISOR = 12;
+
   if (taxConfig.type === 'sme') {
     const vatRate = taxConfig.vatRate != null ? taxConfig.vatRate : 0.23;
     const corpRate = taxConfig.corpTaxRate != null ? taxConfig.corpTaxRate : 0.125;
     const prsiRate = taxConfig.prsiRate != null ? taxConfig.prsiRate : 0.09;
-    const vat = earnings * vatRate;
-    const corpTax = earnings * corpRate;
-    const prsi = earnings * prsiRate;
+    const vat = (earnings * vatRate) / MONTHLY_DIVISOR;
+    const corpTax = (earnings * corpRate) / MONTHLY_DIVISOR;
+    const prsi = (earnings * prsiRate) / MONTHLY_DIVISOR;
 
     return {
       vat: round2(vat),
@@ -121,7 +147,7 @@ function estimateTaxes(transactions, taxConfig) {
     };
   }
 
-  // individual: income from recurring incoming only; bands: 0 if <17k, 20% on first 44k, 40% on balance
+  // individual: income from recurring only; income tax 20% / 40%, PRSI 4.2%, USC 2026 bands; returned as monthly (÷12)
   const annualIncome = getAnnualIncomeFromRecurring(transactions);
   let incomeTax = 0;
   if (annualIncome > INDIVIDUAL_TAX_THRESHOLD) {
@@ -129,13 +155,17 @@ function estimateTaxes(transactions, taxConfig) {
     const inHigherBand = Math.max(0, annualIncome - INDIVIDUAL_STANDARD_BAND);
     incomeTax = inStandardBand * INDIVIDUAL_STANDARD_RATE + inHigherBand * INDIVIDUAL_HIGHER_RATE;
   }
+  const prsi = (annualIncome * INDIVIDUAL_PRSI_RATE) / MONTHLY_DIVISOR;
+  const usc = calculateUSC(annualIncome) / MONTHLY_DIVISOR;
+  incomeTax /= MONTHLY_DIVISOR;
+  const total = incomeTax + prsi + usc;
   return {
     vat: null,
     corpTax: null,
-    prsi: 0,
+    prsi: round2(prsi),
     incomeTax: round2(incomeTax),
-    usc: 0,
-    total: round2(incomeTax),
+    usc: round2(usc),
+    total: round2(total),
   };
 }
 
