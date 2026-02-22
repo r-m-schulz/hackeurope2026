@@ -5,7 +5,8 @@ Customizable test data for sandbox/demo mode is loaded from JSON files:
 - **`sandbox-individual.json`** – personal (user) account
 - **`sandbox-sme.json`** – business (SME) account
 
-The app **only displays data from these JSON files**. Existing database or bank (Plaid) data is never shown. Edit the JSON files to change what users see.
+- **Bank connected (Plaid):** the app displays only the sandbox JSON data for the user's account type (no real bank data shown).
+- **Bank not connected:** the app displays the user's own data (transactions, balance, subscriptions stored in the DB). When the DB is empty, sandbox JSON is shown as fallback. Edit the JSON files to change sandbox/demo content.
 
 ## JSON structure
 

@@ -1,7 +1,7 @@
 {
   "account": {
     "displayName": "SME Sandbox",
-    "currentBalance": 85400
+    "currentBalance": 92000
   },
   "transactions": [
     { "id": "t1", "date": "2025-01-03", "amount": 12500, "merchant": "Acme Corp", "type": "income", "category": "Revenue" },

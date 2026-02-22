@@ -148,8 +148,8 @@ router.get('/summary', async (req, res) => {
 
 // GET /finance/settings (auth required) — returns current_balance
 router.get('/settings', requireAuth, async (req, res) => {
-  const balance = getBalance(req.userType);
-  res.json({ current_balance: balance });
+  const balance = await getBalance(req.userId, req.userType);
+  res.json({ current_balance: balance !== null && balance !== undefined ? balance : 0 });
 });
 
 // PUT /finance/settings (auth required) — update current_balance
@@ -178,7 +178,7 @@ router.put('/settings', requireAuth, async (req, res) => {
 
 // GET /finance/transactions
 router.get('/transactions', async (req, res) => {
-  const { transactions } = getTransactions(req.userType);
+  const { transactions } = await getTransactions(req.userType, req.userId);
   const sorted = [...transactions].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
@@ -195,7 +195,7 @@ router.get('/forecast', async (req, res) => {
 
 // GET /finance/recurring
 router.get('/recurring', async (req, res) => {
-  const { transactions } = getTransactions(req.userType);
+  const { transactions } = await getTransactions(req.userType, req.userId);
   const recurring = detectRecurringPayments(transactions);
   res.json({ recurring, count: recurring.length });
 });
