@@ -33,18 +33,37 @@ function normalisePlaidTransaction(tx) {
   };
 }
 
-async function fetchPlaidTransactions(accessToken) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchPlaidTransactions(accessToken, { retries = 4, retryDelayMs = 2000 } = {}) {
   const today = new Date();
   const startDate = new Date(today);
   startDate.setDate(startDate.getDate() - 90);
 
-  const response = await plaidClient.transactionsGet({
-    access_token: accessToken,
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0],
-  });
-
-  return response.data.transactions.map(normalisePlaidTransaction);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await plaidClient.transactionsGet({
+        access_token: accessToken,
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: today.toISOString().split('T')[0],
+      });
+      const txs = response.data.transactions;
+      console.log(`[Plaid] fetched ${txs.length} transactions (attempt ${attempt})`);
+      return txs.map(normalisePlaidTransaction);
+    } catch (err) {
+      const plaidErr = err.response?.data;
+      if (plaidErr?.error_code === 'PRODUCT_NOT_READY' && attempt < retries) {
+        console.warn(`[Plaid] PRODUCT_NOT_READY — retrying in ${retryDelayMs}ms (attempt ${attempt}/${retries})`);
+        await sleep(retryDelayMs);
+        continue;
+      }
+      console.error('[Plaid] transactionsGet error:', plaidErr || err.message);
+      if (plaidErr?.error_code === 'PRODUCT_NOT_READY') {
+        return []; // still not ready after all retries — return empty gracefully
+      }
+      throw err;
+    }
+  }
 }
 
 // Returns transactions from Plaid if the user has connected their bank,

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BrainCircuit } from "lucide-react";
 import { usePlaidLink } from "react-plaid-link";
 import { api } from "@/lib/api";
-import { getToken, getUserType, clearAuth } from "@/lib/auth";
+import { getToken, getUserType, clearAuth, saveProStatus } from "@/lib/auth";
+import { ProGate } from "@/components/ProGate";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { MetricCards } from "@/components/MetricCards";
 import { ForecastChart } from "@/components/ForecastChart";
@@ -38,6 +39,7 @@ import { toast } from "sonner";
 const Index = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const token = getToken()!;
   const userType = getUserType() ?? "sme";
   const [affordabilityOpen, setAffordabilityOpen] = useState(false);
@@ -205,6 +207,14 @@ const Index = () => {
   useEffect(() => {
     if (linkToken && plaidReady) openPlaid();
   }, [linkToken, plaidReady, openPlaid]);
+
+  // Handle Stripe checkout success redirect
+  useEffect(() => {
+    if (searchParams.get("checkout") !== "success") return;
+    saveProStatus(true);
+    toast.success("Welcome to Pro! AI insights and forecasting are now unlocked.");
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   async function handleConnectBank() {
     setConnectingBank(true);
@@ -382,11 +392,13 @@ const Index = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <TaxVault estimatedTax={summary.estimatedTax} balance={summary.balance} />
           <CashRunway days={runwayData?.days ?? 0} />
-          <AIInsightPanel
-            insights={cfoInsightsData?.insights ?? []}
-            isLoading={cfoInsightsLoading}
-            isError={cfoInsightsError}
-          />
+          <ProGate label="AI insights — Pro feature">
+            <AIInsightPanel
+              insights={cfoInsightsData?.insights ?? []}
+              isLoading={cfoInsightsLoading}
+              isError={cfoInsightsError}
+            />
+          </ProGate>
         </div>
 
         {/* Savings & Optimizations – below Tax Vault / Runway */}

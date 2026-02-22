@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { saveAuth } from "@/lib/auth";
+import { saveAuth, saveProStatus } from "@/lib/auth";
+import { api } from "@/lib/api";
 import type { UserType } from "@/lib/api";
 import {
   Eye,
@@ -61,6 +62,15 @@ export default function Login() {
       if (!res.ok) throw new Error(data.error || "Something went wrong");
 
       saveAuth(data.access_token, data.user_type);
+
+      // Fetch and cache subscription status
+      try {
+        const status = await api.stripe.subscriptionStatus(data.access_token);
+        saveProStatus(status.isPro);
+      } catch {
+        saveProStatus(false);
+      }
+
       navigate(tab === "signup" ? "/setup" : "/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");

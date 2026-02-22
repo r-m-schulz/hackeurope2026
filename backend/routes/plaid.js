@@ -33,8 +33,10 @@ router.post('/exchange-token', requireAuth, async (req, res) => {
 
     const { error } = await supabaseAdmin
       .from('user_profiles')
-      .update({ plaid_access_token: access_token, plaid_item_id: item_id })
-      .eq('user_id', req.userId);
+      .upsert(
+        { user_id: req.userId, user_type: req.userType, plaid_access_token: access_token, plaid_item_id: item_id },
+        { onConflict: 'user_id' }
+      );
 
     if (error) {
       console.error('Supabase update error:', error);

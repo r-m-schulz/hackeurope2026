@@ -133,4 +133,12 @@ export const api = {
     exchangeToken: (public_token: string, token: string) =>
       post<{ status: string }>("/plaid/exchange-token", { public_token }, token),
   },
+
+  stripe: {
+    createCheckoutSession: (token: string) =>
+      post<{ url: string }>("/stripe/create-checkout-session", {}, token),
+
+    subscriptionStatus: (token: string) =>
+      get<{ isPro: boolean; status: string }>("/stripe/subscription-status", undefined, token),
+  },
 };

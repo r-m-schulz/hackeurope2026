@@ -54,16 +54,30 @@ async function getSubscriptions(userId) {
   }));
 }
 
+async function getBalance(userId) {
+  if (!userId) return null;
+  try {
+    const { data } = await supabaseAdmin
+      .from('user_settings')
+      .select('current_balance')
+      .eq('user_id', userId)
+      .maybeSingle();
+    return data ? Number(data.current_balance) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 async function buildAppData(userType, userId = null) {
-  const [transactions, subscriptions] = await Promise.all([
+  const [transactions, subscriptions, currentBalance] = await Promise.all([
     getTransactions(userType),
     getSubscriptions(userId),
+    getBalance(userId),
   ]);
-  const seedMeta = getSeedMeta(userType);
   return {
     transactions,
     subscriptions,
-    currentBalance: seedMeta.currentBalance,
+    currentBalance,
     taxConfig: getTaxConfig(userType),
   };
 }

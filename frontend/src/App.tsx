@@ -10,6 +10,7 @@ import About from "./pages/About";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Setup from "./pages/Setup";
+import Subscribe from "./pages/Subscribe";
 import { isLoggedIn } from "./lib/auth";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/" element={<RootRoute />} />
             <Route path="/setup" element={<ProtectedRoute><Setup /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/subscribe" element={<Subscribe />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
