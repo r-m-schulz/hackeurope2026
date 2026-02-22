@@ -9,7 +9,7 @@ router.post('/create-link-token', requireAuth, async (req, res) => {
   try {
     const response = await plaidClient.linkTokenCreate({
       user: { client_user_id: req.userId },
-      client_name: 'TrueBalance',
+      client_name: 'PocketCFO',
       products: ['transactions'],
       country_codes: ['IE', 'GB'],
       language: 'en',

@@ -58,6 +58,7 @@
     --chart-3: 38 92% 50%;
     --chart-4: 280 60% 50%;
     --chart-5: 200 70% 50%;
+    --pie-segment-stroke: 0 0% 100%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -107,6 +108,8 @@
     --navy: 210 40% 85%;
     --navy-light: 210 30% 35%;
     --chart-line: 200 60% 65%;
+    /* Pie segment borders – dark blue so they don’t glow white */
+    --pie-segment-stroke: 220 25% 9%;
   }
 }
 
