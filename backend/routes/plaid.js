@@ -76,6 +76,22 @@ router.post('/exchange-token', requireAuth, async (req, res) => {
       console.warn('[Plaid] transactionsRefresh failed:', refreshErr.response?.data?.error_code || refreshErr.message);
     }
 
+    // Fetch account balance from Plaid and persist it so the dashboard shows real figures.
+    try {
+      const balanceRes = await plaidClient.accountsBalanceGet({ access_token });
+      const accounts = balanceRes.data.accounts ?? [];
+      const totalBalance = accounts.reduce((sum, a) => sum + (a.balances.current ?? 0), 0);
+      await supabaseAdmin
+        .from('user_settings')
+        .upsert(
+          { user_id: req.userId, current_balance: totalBalance, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+      console.log(`[Plaid] balance synced: €${totalBalance} across ${accounts.length} account(s)`);
+    } catch (balErr) {
+      console.warn('[Plaid] balance fetch failed:', balErr.response?.data?.error_code || balErr.message);
+    }
+
     res.json({ status: 'connected' });
   } catch (err) {
     console.error('Plaid exchange-token error:', err.response?.data || err.message);

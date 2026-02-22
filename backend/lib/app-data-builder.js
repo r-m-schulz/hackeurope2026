@@ -36,14 +36,14 @@ async function fetchPlaidTransactions(accessToken) {
   return response.data.transactions.map(normalisePlaidTransaction);
 }
 
-async function isPlaidConnected(userId) {
-  if (!userId) return false;
+
+async function getPlaidAccessToken(userId) {
   const { data } = await supabaseAdmin
     .from('user_profiles')
     .select('plaid_access_token')
     .eq('user_id', userId)
     .maybeSingle();
-  return !!(data?.plaid_access_token);
+  return data?.plaid_access_token ?? null;
 }
 
 async function getTransactions(userType, userId = null) {
@@ -51,10 +51,10 @@ async function getTransactions(userType, userId = null) {
     const sandbox = getSandboxData(userType);
     return { transactions: sandbox.transactions };
   }
-  const useSandbox = await isPlaidConnected(userId);
-  if (useSandbox) {
-    const sandbox = getSandboxData(userType);
-    return { transactions: sandbox.transactions };
+  const accessToken = await getPlaidAccessToken(userId);
+  if (accessToken) {
+    const transactions = await fetchPlaidTransactions(accessToken);
+    return { transactions };
   }
   const { data, error } = await supabaseAdmin
     .from('transactions')
@@ -70,23 +70,20 @@ async function getTransactions(userType, userId = null) {
 }
 
 async function getBalance(userId, userType = null) {
-  if (!userId && userType) {
-    const sandbox = getSandboxData(userType);
-    return typeof sandbox.account?.currentBalance === 'number' ? sandbox.account.currentBalance : 0;
+  if (!userId) {
+    if (userType) {
+      const sandbox = getSandboxData(userType);
+      return typeof sandbox.account?.currentBalance === 'number' ? sandbox.account.currentBalance : 0;
+    }
+    return null;
   }
-  if (!userId) return null;
-  const useSandbox = await isPlaidConnected(userId);
-  if (useSandbox && userType) {
-    const sandbox = getSandboxData(userType);
-    return typeof sandbox.account?.currentBalance === 'number' ? sandbox.account.currentBalance : 0;
-  }
+  // Plaid doesn't provide balance via transactionsGet — use user_settings, fall back to sandbox
   const { data, error } = await supabaseAdmin
     .from('user_settings')
     .select('current_balance')
     .eq('user_id', userId)
     .maybeSingle();
-  if (error) return null;
-  if (data != null) return Number(data.current_balance);
+  if (!error && data != null) return Number(data.current_balance);
   if (userType) {
     const sandbox = getSandboxData(userType);
     return typeof sandbox.account?.currentBalance === 'number' ? sandbox.account.currentBalance : 0;
@@ -95,15 +92,12 @@ async function getBalance(userId, userType = null) {
 }
 
 async function getSubscriptions(userId, userType = null) {
-  if (!userId && userType) {
-    const sandbox = getSandboxData(userType);
-    return sandbox.subscriptions ?? [];
-  }
-  if (!userId) return [];
-  const useSandbox = await isPlaidConnected(userId);
-  if (useSandbox && userType) {
-    const sandbox = getSandboxData(userType);
-    return sandbox.subscriptions ?? [];
+  if (!userId) {
+    if (userType) {
+      const sandbox = getSandboxData(userType);
+      return sandbox.subscriptions ?? [];
+    }
+    return [];
   }
   const { data, error } = await supabaseAdmin
     .from('subscriptions')
