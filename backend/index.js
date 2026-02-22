@@ -5,19 +5,18 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS (allow local + your deployed frontend)
+// CORS (allow local + vercel deployments)
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
-  'https://hackeurope2026.vercel.app',
 ];
 
 app.use(cors({
   origin: (origin, cb) => {
-    // allow requests with no origin (curl, server-to-server, health checks)
     if (!origin) return cb(null, true);
-
     if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (origin.endsWith('.vercel.app')) return cb(null, true);
+
     return cb(new Error(`CORS blocked origin: ${origin}`));
   },
   credentials: true,
@@ -25,7 +24,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.options('*', cors());
+app.options('/*', cors());
 
 app.use(express.json());
 
@@ -48,6 +47,7 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Global error handler
 app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: err.message || 'Internal server error' });
