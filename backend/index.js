@@ -5,27 +5,30 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS (allow local + vercel deployments)
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:4173',
-];
-
+// CORS (works on Render + Vercel)
 app.use(cors({
   origin: (origin, cb) => {
+    // allow requests with no origin (health checks / curl / server-to-server)
     if (!origin) return cb(null, true);
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    if (origin.endsWith('.vercel.app')) return cb(null, true);
 
-    return cb(new Error(`CORS blocked origin: ${origin}`));
+    // allow local dev
+    if (origin === 'http://localhost:5173' || origin === 'http://localhost:4173') {
+      return cb(null, true);
+    }
+
+    // allow any Vercel deployment (prod + preview)
+    if (origin.endsWith('.vercel.app')) {
+      return cb(null, true);
+    }
+
+    return cb(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-app.options('/*', cors());
-
+// IMPORTANT: do NOT add app.options('*'...) or app.options('/*'...) on your setup (it crashes on Render)
 app.use(express.json());
 
 app.use((req, _res, next) => {
