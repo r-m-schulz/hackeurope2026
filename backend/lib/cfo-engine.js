@@ -772,6 +772,9 @@ function getRuleBasedSavings(appData, userSettings = {}) {
   const totalMonthlyExpenses = appData.transactions
     .filter(t => t.type === 'expense')
     .reduce((s, t) => s + t.amount, 0) / 3;
+  const totalMonthlyIncome = appData.transactions
+    .filter(t => t.type === 'income')
+    .reduce((s, t) => s + t.amount, 0) / 3;
   if (totalMonthlyExpenses > 500) {
     items.push({
       id: 'pension-contributions',
@@ -835,8 +838,8 @@ function getRuleBasedSavings(appData, userSettings = {}) {
   items.push({
     id: 'vat-reclaim-review',
     title: 'Review VAT reclaim on all business purchases',
-    estimateMonthlyLow: Math.round(appData.currentBalance * 0.002),
-    estimateMonthlyHigh: Math.round(appData.currentBalance * 0.005),
+    estimateMonthlyLow: Math.max(Math.round(totalMonthlyExpenses * 0.02), 20),
+    estimateMonthlyHigh: Math.max(Math.round(totalMonthlyExpenses * 0.05), 60),
     confidence: 65,
     rationale: "If you're VAT-registered, you can reclaim 23% VAT on most business expenses — software, equipment, office supplies, professional services. Many businesses miss this by not keeping proper VAT receipts.",
     ctaPrimary: 'Review',
@@ -847,8 +850,8 @@ function getRuleBasedSavings(appData, userSettings = {}) {
   items.push({
     id: 'r-and-d-tax-credit',
     title: 'R&D Tax Credit — 25% of qualifying development spend',
-    estimateMonthlyLow: Math.round(totalMonthlyExpenses * 0.03),
-    estimateMonthlyHigh: Math.round(totalMonthlyExpenses * 0.08),
+    estimateMonthlyLow: Math.max(Math.round(totalMonthlyExpenses * 0.03), 25),
+    estimateMonthlyHigh: Math.max(Math.round(totalMonthlyExpenses * 0.08), 75),
     confidence: 50,
     rationale: 'Any spend on developing new products, services or processes (including software, prototyping, testing) may qualify for a 25% R&D tax credit in Ireland. This applies even to failed projects. Many businesses don\'t claim this.',
     ctaPrimary: 'Review',
@@ -871,8 +874,8 @@ function getRuleBasedSavings(appData, userSettings = {}) {
   items.push({
     id: 'sure-eiis',
     title: 'SURE or EIIS investment relief — up to 40% income tax relief',
-    estimateMonthlyLow: 0,
-    estimateMonthlyHigh: Math.round(totalMonthlyExpenses * 0.1),
+    estimateMonthlyLow: Math.max(Math.round(totalMonthlyIncome * 0.02), 40),
+    estimateMonthlyHigh: Math.max(Math.round(totalMonthlyIncome * 0.08), 150),
     confidence: 40,
     rationale: 'SURE (Start-Up Relief for Entrepreneurs) and EIIS (Employment Investment Incentive Scheme) provide income tax relief of up to 40% on qualifying investment into the business. Confirm eligibility with an accountant.',
     ctaPrimary: 'Review',
@@ -897,8 +900,8 @@ function getRuleBasedSavings(appData, userSettings = {}) {
     items.push({
       id: 'keep-scheme',
       title: 'KEEP scheme — issue share options instead of salary to reduce burn',
-      estimateMonthlyLow: Math.round(totalMonthlyExpenses * 0.05),
-      estimateMonthlyHigh: Math.round(totalMonthlyExpenses * 0.15),
+      estimateMonthlyLow: Math.max(Math.round(totalMonthlyExpenses * 0.05), 100),
+      estimateMonthlyHigh: Math.max(Math.round(totalMonthlyExpenses * 0.15), 300),
       confidence: 55,
       rationale: 'Key Employee Engagement Programme (KEEP) lets Irish startups grant qualifying employees CGT-taxed share options instead of higher salary. Reduces cash burn while retaining talent. Requires Revenue pre-approval.',
       ctaPrimary: 'Review',
@@ -909,8 +912,8 @@ function getRuleBasedSavings(appData, userSettings = {}) {
     items.push({
       id: 'enterprise-ireland-grants',
       title: 'Enterprise Ireland & IDA grants — non-dilutive funding available',
-      estimateMonthlyLow: 0,
-      estimateMonthlyHigh: Math.round(totalMonthlyExpenses * 0.2),
+      estimateMonthlyLow: Math.max(Math.round(totalMonthlyExpenses * 0.1), 200),
+      estimateMonthlyHigh: Math.max(Math.round(totalMonthlyExpenses * 0.3), 600),
       confidence: 50,
       rationale: 'Enterprise Ireland offers Competitive Start Fund (up to €50k), High Potential Start-Up (HPSU) funding, and R&D grants. IDA offers similar for FDI-eligible startups. Non-dilutive and highly valuable at early stage.',
       ctaPrimary: 'Explore grants',
@@ -921,8 +924,8 @@ function getRuleBasedSavings(appData, userSettings = {}) {
     items.push({
       id: 'saas-tool-audit-startup',
       title: 'Audit your SaaS stack — startup plans and open-source alternatives exist',
-      estimateMonthlyLow: Math.round(totalMonthlyExpenses * 0.02),
-      estimateMonthlyHigh: Math.round(totalMonthlyExpenses * 0.06),
+      estimateMonthlyLow: Math.max(Math.round(totalMonthlyExpenses * 0.02), 30),
+      estimateMonthlyHigh: Math.max(Math.round(totalMonthlyExpenses * 0.06), 100),
       confidence: 60,
       rationale: 'Many SaaS tools (Hubspot, Intercom, Notion, Figma) offer free or heavily discounted startup plans via programs like HubSpot for Startups. Consolidating or switching can meaningfully reduce burn.',
       ctaPrimary: 'Audit tools',
@@ -931,7 +934,16 @@ function getRuleBasedSavings(appData, userSettings = {}) {
     });
   }
 
-  return items.slice(0, 17);
+  // Safety net: ensure no item shows €0 — floor estimates using monthly expense data
+  const floorLow = Math.max(Math.round(totalMonthlyExpenses * 0.005), 5);
+  const floorHigh = Math.max(Math.round(totalMonthlyExpenses * 0.015), 15);
+  return items.slice(0, 17).map(item => ({
+    ...item,
+    estimateMonthlyLow: item.estimateMonthlyLow > 0 ? item.estimateMonthlyLow : floorLow,
+    estimateMonthlyHigh: item.estimateMonthlyHigh > 0
+      ? item.estimateMonthlyHigh
+      : Math.max(floorHigh, item.estimateMonthlyLow > 0 ? Math.round(item.estimateMonthlyLow * 1.5) : floorHigh),
+  }));
 }
 
 function formatAnswerText(result, monthlyAmount, intent, oneOffAmount = 0) {

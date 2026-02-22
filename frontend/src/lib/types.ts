@@ -100,6 +100,10 @@ export interface CFOSavingsResponse {
   items: CFOSavingsItem[];
 }
 
+export interface CFOProSavingsResponse {
+  items: CFOSavingsItem[];
+}
+
 /** Financial summary payload for Affordability Advisor (summarized numbers only) */
 export interface AffordabilitySummary {
   bankBalance: number;

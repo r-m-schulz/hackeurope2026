@@ -7,6 +7,7 @@ const { getTaxConfig } = require('../lib/tax-config');
 const { parseIntent, computeCFOAnswer, getRuleBasedSavings, formatAnswerText } = require('../lib/cfo-engine');
 const { SYSTEM_PROMPT, buildUserMessage } = require('../lib/buildAffordabilityPrompt');
 const { CFO_INSIGHTS_SYSTEM_PROMPT, buildCFOInsightsUserMessage } = require('../lib/buildCFOInsightsPrompt');
+const { PRO_SAVINGS_SYSTEM_PROMPT, buildProSavingsUserMessage } = require('../lib/buildProSavingsPrompt');
 
 function validateUserTypeOptional(req, res, next) {
   const userType = req.query.user_type || req.body?.user_type;
@@ -320,6 +321,77 @@ router.post('/insights', async (req, res) => {
   } catch (err) {
     console.error('CFO insights error', err);
     res.status(500).json({ error: err.message || 'CFO insights failed.' });
+  }
+});
+
+// POST /cfo/pro-savings — AI-powered personalised savings (Pro feature, requires auth)
+// Body: { financialSnapshot: { summary, breakdown, transactions, recurring, subscriptions }, userType? }
+router.post('/pro-savings', async (req, res) => {
+  try {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'Pro Savings not configured (GROQ_API_KEY missing).' });
+    }
+    const { financialSnapshot, userType } = req.body;
+    if (!financialSnapshot || typeof financialSnapshot !== 'object') {
+      return res.status(400).json({ error: 'financialSnapshot is required.' });
+    }
+
+    const resolvedUserType = userType || req.userType || 'sme';
+    const userMessage = buildProSavingsUserMessage({ ...financialSnapshot, userType: resolvedUserType });
+
+    console.log('[Groq pro-savings] generating for userType:', resolvedUserType);
+
+    const client = new Groq({ apiKey });
+    const completion = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        { role: 'system', content: PRO_SAVINGS_SYSTEM_PROMPT },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 0.4,
+      max_tokens: 1400,
+      response_format: { type: 'json_object' },
+    });
+
+    const raw = completion.choices?.[0]?.message?.content?.trim() || '';
+    console.log('[Groq pro-savings] raw:', raw.slice(0, 400));
+
+    let items;
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        items = parsed;
+      } else if (Array.isArray(parsed.items)) {
+        items = parsed.items;
+      } else {
+        const arrayVal = Object.values(parsed).find(v => Array.isArray(v));
+        items = arrayVal || [];
+      }
+    } catch (_) {
+      console.error('[Groq pro-savings] JSON parse failed, raw:', raw.slice(0, 500));
+      return res.status(502).json({ error: 'AI response was not valid JSON.', raw: raw.slice(0, 500) });
+    }
+
+    const sanitised = items
+      .filter(i => i && typeof i.title === 'string' && i.title.trim())
+      .map((i, idx) => ({
+        id: typeof i.id === 'string' ? i.id : `pro-saving-${idx}`,
+        title: String(i.title).trim(),
+        estimateMonthlyLow: typeof i.estimateMonthlyLow === 'number' ? Math.max(0, i.estimateMonthlyLow) : 0,
+        estimateMonthlyHigh: typeof i.estimateMonthlyHigh === 'number' ? Math.max(0, i.estimateMonthlyHigh) : 0,
+        confidence: typeof i.confidence === 'number' ? Math.max(0, Math.min(100, i.confidence)) : 70,
+        rationale: typeof i.rationale === 'string' ? i.rationale.trim() : '',
+        ctaPrimary: 'Review',
+        ctaSecondary: 'Ignore',
+        tags: Array.isArray(i.tags) ? i.tags.filter(t => typeof t === 'string') : [],
+        evidence: typeof i.evidence === 'string' && i.evidence.trim() ? i.evidence.trim() : undefined,
+      }));
+
+    res.json({ items: sanitised });
+  } catch (err) {
+    console.error('CFO pro-savings error', err);
+    res.status(500).json({ error: err.message || 'Pro savings failed.' });
   }
 });
 

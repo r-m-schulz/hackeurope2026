@@ -347,6 +347,9 @@ export function getRuleBasedSavings(
   const totalMonthlyExpenses = appData.transactions
     .filter((t) => t.type === "expense")
     .reduce((s, t) => s + t.amount, 0) / 3;
+  const totalMonthlyIncome = appData.transactions
+    .filter((t) => t.type === "income")
+    .reduce((s, t) => s + t.amount, 0) / 3;
   if (totalMonthlyExpenses > 500) {
     items.push({
       id: "pension-contributions",
@@ -413,8 +416,8 @@ export function getRuleBasedSavings(
   items.push({
     id: "vat-reclaim-review",
     title: "Review VAT reclaim on all business purchases",
-    estimateMonthlyLow: Math.round(appData.currentBalance * 0.002),
-    estimateMonthlyHigh: Math.round(appData.currentBalance * 0.005),
+    estimateMonthlyLow: Math.max(Math.round(totalMonthlyExpenses * 0.02), 20),
+    estimateMonthlyHigh: Math.max(Math.round(totalMonthlyExpenses * 0.05), 60),
     confidence: 65,
     rationale:
       "If you're VAT-registered, you can reclaim 23% VAT on most business expenses — software, equipment, office supplies, professional services. Many businesses miss this by not keeping proper VAT receipts.",
@@ -426,8 +429,8 @@ export function getRuleBasedSavings(
   items.push({
     id: "r-and-d-tax-credit",
     title: "R&D Tax Credit — worth up to 25% of qualifying spend",
-    estimateMonthlyLow: Math.round(totalMonthlyExpenses * 0.03),
-    estimateMonthlyHigh: Math.round(totalMonthlyExpenses * 0.08),
+    estimateMonthlyLow: Math.max(Math.round(totalMonthlyExpenses * 0.03), 25),
+    estimateMonthlyHigh: Math.max(Math.round(totalMonthlyExpenses * 0.08), 75),
     confidence: 50,
     rationale:
       "Any spend on developing new products, services or processes (including software, prototyping, testing) may qualify for a 25% R&D tax credit in Ireland. This applies even to failed projects. Many SMEs don't claim this.",
@@ -452,8 +455,8 @@ export function getRuleBasedSavings(
   items.push({
     id: "startup-relief",
     title: "Start-Up Relief (SURE) or EIIS may reduce your tax bill",
-    estimateMonthlyLow: 0,
-    estimateMonthlyHigh: Math.round(totalMonthlyExpenses * 0.1),
+    estimateMonthlyLow: Math.max(Math.round(totalMonthlyIncome * 0.02), 40),
+    estimateMonthlyHigh: Math.max(Math.round(totalMonthlyIncome * 0.08), 150),
     confidence: 40,
     rationale:
       "If you or investors have put money into the business, SURE (Start-Up Relief for Entrepreneurs) or EIIS (Employment Investment Incentive Scheme) can provide income tax relief of up to 40% on investment. Confirm eligibility with an accountant.",
@@ -462,7 +465,17 @@ export function getRuleBasedSavings(
     tags: ["tax", "startup"],
   });
 
-  return items.slice(0, 17);
+  // Safety net: ensure no item shows €0 — floor estimates using monthly expense data
+  const floorLow = Math.max(Math.round(totalMonthlyExpenses * 0.005), 5);
+  const floorHigh = Math.max(Math.round(totalMonthlyExpenses * 0.015), 15);
+  return items.slice(0, 17).map((item) => ({
+    ...item,
+    estimateMonthlyLow: item.estimateMonthlyLow > 0 ? item.estimateMonthlyLow : floorLow,
+    estimateMonthlyHigh:
+      item.estimateMonthlyHigh > 0
+        ? item.estimateMonthlyHigh
+        : Math.max(floorHigh, item.estimateMonthlyLow > 0 ? Math.round(item.estimateMonthlyLow * 1.5) : floorHigh),
+  }));
 }
 
 function groupByMerchantFamily(

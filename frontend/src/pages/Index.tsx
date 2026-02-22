@@ -115,6 +115,14 @@ const Index = () => {
     retry: 1,
   });
 
+  const { data: proSavingsData, isLoading: proSavingsLoading, isError: proSavingsError } = useQuery({
+    queryKey: ["cfo-pro-savings", userType],
+    queryFn: () => api.cfo.proSavings({ financialSnapshot: cfoInsightsSnapshot!, userType }, token),
+    enabled: !!cfoInsightsSnapshot,
+    staleTime: 10 * 60_000,
+    retry: 1,
+  });
+
   const { data: savingsData } = useQuery({
     queryKey: ["cfo-savings", userType],
     queryFn: () => api.cfo.savings(token, userType),
@@ -405,7 +413,12 @@ const Index = () => {
 
         {/* Savings & Optimizations – below Tax Vault / Runway */}
         <section className="rounded-2xl border border-border bg-card/50 p-6">
-          <SavingsStream items={savingsItems} />
+          <SavingsStream
+            items={savingsItems}
+            proItems={proSavingsData?.items ?? []}
+            proLoading={proSavingsLoading}
+            proError={proSavingsError}
+          />
         </section>
 
         {/* Funds allocator – same width as content below (transactions level) */}

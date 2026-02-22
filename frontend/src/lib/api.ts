@@ -1,4 +1,4 @@
-import type { FinancialSummary, ForecastDay, ExpenseBreakdown, RecurringPayment, Transaction, ManualSubscription, AppData, CFOQueryInput, CFOQueryResponse, CFOSavingsResponse, AffordabilitySummary, AffordabilityAdvisorResponse, CFOInsightsResponse, CFOInsightsSnapshot } from "./types";
+import type { FinancialSummary, ForecastDay, ExpenseBreakdown, RecurringPayment, Transaction, ManualSubscription, AppData, CFOQueryInput, CFOQueryResponse, CFOSavingsResponse, CFOProSavingsResponse, AffordabilitySummary, AffordabilityAdvisorResponse, CFOInsightsResponse, CFOInsightsSnapshot } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -121,6 +121,11 @@ export const api = {
       body: { financialSnapshot: CFOInsightsSnapshot; userType?: string },
       token: string
     ) => post<CFOInsightsResponse>("/cfo/insights", body, token),
+
+    proSavings: (
+      body: { financialSnapshot: CFOInsightsSnapshot; userType?: string },
+      token: string
+    ) => post<CFOProSavingsResponse>("/cfo/pro-savings", body, token),
   },
 
   plaid: {
