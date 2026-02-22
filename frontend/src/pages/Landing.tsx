@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   ShieldCheck,
   TrendingUp,
@@ -15,6 +15,7 @@ import {
   BrainCircuit,
 } from "lucide-react";
 import { LandingNav } from "@/components/LandingNav";
+import { scrollToSection } from "@/lib/scroll-sections";
 
 const features = [
   {
@@ -74,6 +75,18 @@ const proPlanFeatures = [
 ];
 
 export default function Landing() {
+  const location = useLocation();
+
+  // Scroll to hash section only when arriving from another page with /#features or /#pricing
+  useEffect(() => {
+    if (location.pathname !== "/") return;
+    const hash = location.hash?.slice(1);
+    if (hash === "features" || hash === "pricing") {
+      const id = hash;
+      requestAnimationFrame(() => scrollToSection(id));
+    }
+  }, [location.pathname, location.hash]);
+
   // Set html bg to match so overscroll reveals the same colour, not white
   useEffect(() => {
     const root = document.documentElement;
@@ -173,7 +186,7 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section id="features" className="scroll-mt-20 py-24 sm:py-32 relative">
+      <section id="features" className="scroll-mt-10 py-24 sm:py-32 relative">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium mb-6 border border-[#76b900]/30 bg-[#76b900]/8 text-[#5a8d00] dark:text-[#76b900]">
@@ -220,7 +233,7 @@ export default function Landing() {
       </section>
 
       {/* Pricing – FREE & PRO */}
-      <section id="pricing" className="scroll-mt-20 py-24 sm:py-32 relative">
+      <section id="pricing" className="scroll-mt-0 py-24 sm:py-32 relative">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#0a0a0a] dark:text-white mb-4">
             Unlock the full picture of your finances
@@ -348,8 +361,20 @@ export default function Landing() {
             <span className="font-semibold text-[#0a0a0a] dark:text-white">PocketCFO</span>
           </Link>
           <div className="flex items-center gap-6 text-sm text-[#0a0a0a]/45 dark:text-white/40">
-            <Link to="/#features" className="hover:text-[#76b900] transition-colors">Features</Link>
-            <Link to="/#pricing" className="hover:text-[#76b900] transition-colors">Pricing</Link>
+            <button
+              type="button"
+              onClick={() => scrollToSection("features")}
+              className="hover:text-[#76b900] transition-colors"
+            >
+              Features
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("pricing")}
+              className="hover:text-[#76b900] transition-colors"
+            >
+              Pricing
+            </button>
             <Link to="/about" className="hover:text-[#76b900] transition-colors">About</Link>
             <Link to="/login" className="hover:text-[#76b900] transition-colors">Log in</Link>
           </div>

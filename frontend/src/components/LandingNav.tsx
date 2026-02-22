@@ -1,11 +1,14 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { PocketCFOLogo } from "@/components/PocketCFOLogo";
+import { scrollToSection } from "@/lib/scroll-sections";
 
 export function LandingNav() {
   const { setTheme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const location = useLocation();
+  const isLanding = location.pathname === "/";
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl border-b border-[#76b900]/15 bg-[#f5f5f5]/85 dark:bg-[#0a0a0a]/85">
@@ -18,18 +21,39 @@ export function LandingNav() {
         </Link>
 
         <nav className="flex items-center gap-1 sm:gap-2">
-          <Link
-            to="/#features"
-            className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
-          >
-            Features
-          </Link>
-          <Link
-            to="/#pricing"
-            className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
-          >
-            Pricing
-          </Link>
+          {isLanding ? (
+            <>
+              <button
+                type="button"
+                onClick={() => scrollToSection("features")}
+                className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
+              >
+                Features
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection("pricing")}
+                className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
+              >
+                Pricing
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/#features"
+                className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
+              >
+                Features
+              </Link>
+              <Link
+                to="/#pricing"
+                className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
+              >
+                Pricing
+              </Link>
+            </>
+          )}
           <Link
             to="/about"
             className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
