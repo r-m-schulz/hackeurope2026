@@ -340,6 +340,15 @@ router.post('/pro-savings', async (req, res) => {
     const resolvedUserType = userType || req.userType || 'sme';
     const userMessage = buildProSavingsUserMessage({ ...financialSnapshot, userType: resolvedUserType });
 
+    // Pre-compute data-driven floors so zero estimates can be replaced with realistic values
+    const txns = Array.isArray(financialSnapshot.transactions) ? financialSnapshot.transactions : [];
+    const months = new Set(txns.map(t => t.date?.slice(0, 7))).size || 1;
+    const avgMonthlyExpenses = txns.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0) / months;
+    const avgMonthlyIncome = txns.filter(t => t.type === 'income').reduce((s, t) => s + (t.amount || 0), 0) / months;
+    const avgMonthly = Math.max(avgMonthlyExpenses, avgMonthlyIncome, 500);
+    const floorLow = Math.max(Math.round(avgMonthly * 0.008), 8);
+    const floorHigh = Math.max(Math.round(avgMonthly * 0.02), 20);
+
     console.log('[Groq pro-savings] generating for userType:', resolvedUserType);
 
     const client = new Groq({ apiKey });
@@ -375,18 +384,24 @@ router.post('/pro-savings', async (req, res) => {
 
     const sanitised = items
       .filter(i => i && typeof i.title === 'string' && i.title.trim())
-      .map((i, idx) => ({
-        id: typeof i.id === 'string' ? i.id : `pro-saving-${idx}`,
-        title: String(i.title).trim(),
-        estimateMonthlyLow: typeof i.estimateMonthlyLow === 'number' ? Math.max(0, i.estimateMonthlyLow) : 0,
-        estimateMonthlyHigh: typeof i.estimateMonthlyHigh === 'number' ? Math.max(0, i.estimateMonthlyHigh) : 0,
-        confidence: typeof i.confidence === 'number' ? Math.max(0, Math.min(100, i.confidence)) : 70,
-        rationale: typeof i.rationale === 'string' ? i.rationale.trim() : '',
-        ctaPrimary: 'Review',
-        ctaSecondary: 'Ignore',
-        tags: Array.isArray(i.tags) ? i.tags.filter(t => typeof t === 'string') : [],
-        evidence: typeof i.evidence === 'string' && i.evidence.trim() ? i.evidence.trim() : undefined,
-      }));
+      .map((i, idx) => {
+        const rawLow = typeof i.estimateMonthlyLow === 'number' ? i.estimateMonthlyLow : 0;
+        const rawHigh = typeof i.estimateMonthlyHigh === 'number' ? i.estimateMonthlyHigh : 0;
+        const low = rawLow > 0 ? rawLow : floorLow;
+        const high = rawHigh > 0 ? rawHigh : Math.max(floorHigh, Math.round(low * 1.5));
+        return {
+          id: typeof i.id === 'string' ? i.id : `pro-saving-${idx}`,
+          title: String(i.title).trim(),
+          estimateMonthlyLow: low,
+          estimateMonthlyHigh: Math.max(high, low),
+          confidence: typeof i.confidence === 'number' ? Math.max(0, Math.min(100, i.confidence)) : 70,
+          rationale: typeof i.rationale === 'string' ? i.rationale.trim() : '',
+          ctaPrimary: 'Review',
+          ctaSecondary: 'Ignore',
+          tags: Array.isArray(i.tags) ? i.tags.filter(t => typeof t === 'string') : [],
+          evidence: typeof i.evidence === 'string' && i.evidence.trim() ? i.evidence.trim() : undefined,
+        };
+      });
 
     res.json({ items: sanitised });
   } catch (err) {

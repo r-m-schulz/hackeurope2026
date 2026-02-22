@@ -59,6 +59,7 @@ RULES
 - Each item must have a realistic monthly saving estimate (even for annual strategies, divide by 12)
 - Confidence should reflect how certain you are the strategy applies (50–95%)
 - Use Irish Revenue / EU tax law context throughout
+- CRITICAL: estimateMonthlyLow and estimateMonthlyHigh MUST be greater than zero — never output 0 for either field. Calculate savings from the actual numbers in the data: for subscriptions use the real cost difference; for tax strategies use a percentage of the relevant spend or income amount. If uncertain, use a conservative non-zero estimate (minimum €5 low, €15 high).
 
 Respond ONLY with a valid JSON object — no markdown, no extra text:
 {"items":[{"id":"string","title":"string","estimateMonthlyLow":number,"estimateMonthlyHigh":number,"confidence":number,"rationale":"string","ctaPrimary":"Review","ctaSecondary":"Ignore","tags":["tax"|"subscription"|"loophole"|"deduction"|"alternative"|"relief"],"evidence":"string"}]}
