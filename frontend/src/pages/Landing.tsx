@@ -11,6 +11,8 @@ import {
   ArrowRight,
   Zap,
   Star,
+  Check,
+  BrainCircuit,
 } from "lucide-react";
 import { LandingNav } from "@/components/LandingNav";
 
@@ -57,6 +59,18 @@ const stats = [
   { value: "€0", label: "Hidden in your balance" },
   { value: "30", label: "Day cash forecast" },
   { value: "3x", label: "Tax obligations tracked" },
+];
+
+const freePlanFeatures = [
+  "Dashboard KPIs (balance, tax reserve, true available)",
+  "Transaction history",
+  "Subscriptions tracker",
+  "Cash runway indicator",
+];
+
+const proPlanFeatures = [
+  { icon: BrainCircuit, label: "AI/CFO insights", desc: "Personalised financial analysis powered by AI" },
+  { icon: Zap, label: "Smart savings tips", desc: "Actionable ways to cut costs and grow runway" },
 ];
 
 export default function Landing() {
@@ -205,6 +219,86 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Pricing – FREE & PRO */}
+      <section id="pricing" className="scroll-mt-20 py-24 sm:py-32 relative">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#0a0a0a] dark:text-white mb-4">
+            Unlock the full picture of your finances
+          </h2>
+          <p className="text-base text-[#0a0a0a]/55 dark:text-white/50 max-w-lg mx-auto mb-12">
+            Pro gives you AI-powered insights and a 30-day cash forecast — so you always know what's coming.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full max-w-2xl mx-auto mb-8">
+            {/* FREE */}
+            <div className="rounded-2xl border border-[#0a0a0a]/10 dark:border-white/10 bg-white dark:bg-[#111] p-6 text-left">
+              <p className="text-xs font-semibold text-[#0a0a0a]/40 dark:text-white/35 uppercase tracking-widest mb-1">Free</p>
+              <p className="text-3xl font-black text-[#0a0a0a] dark:text-white mb-1">€0</p>
+              <p className="text-xs text-[#0a0a0a]/38 dark:text-white/32 mb-5">forever</p>
+              <ul className="space-y-2.5">
+                {freePlanFeatures.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-[#0a0a0a]/65 dark:text-white/55">
+                    <Check className="h-4 w-4 text-[#76b900] shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* PRO */}
+            <div
+              className="rounded-2xl border border-[#76b900]/50 bg-white dark:bg-[#111] p-6 text-left relative overflow-hidden"
+              style={{ boxShadow: "0 0 40px rgba(118,185,0,0.12)" }}
+            >
+              <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#76b900] text-[#0a0a0a]">
+                RECOMMENDED
+              </div>
+              <p className="text-xs font-semibold text-[#76b900] uppercase tracking-widest mb-1">Pro</p>
+              <p className="text-3xl font-black text-[#0a0a0a] dark:text-white mb-1">€9</p>
+              <p className="text-xs text-[#0a0a0a]/38 dark:text-white/32 mb-5">per month</p>
+              <ul className="space-y-3 mb-6">
+                <li className="text-xs font-semibold text-[#0a0a0a]/40 dark:text-white/35 uppercase tracking-widest">
+                  Everything in Free, plus:
+                </li>
+                {proPlanFeatures.map(({ icon: Icon, label, desc }) => (
+                  <li key={label} className="flex items-start gap-2.5">
+                    <Icon className="h-4 w-4 text-[#76b900] shrink-0 mt-0.5" />
+                    <div>
+                      <span className="text-sm font-semibold text-[#0a0a0a] dark:text-white">{label}</span>
+                      <p className="text-xs text-[#0a0a0a]/45 dark:text-white/38">{desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-[#0a0a0a]/45 dark:text-white/40 mt-2">
+                Sign up on the dashboard to upgrade.
+              </p>
+            </div>
+          </div>
+
+          {/* Sign in + Sign up below both plans */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            <Link to="/login">
+              <button className="inline-flex items-center gap-2 h-11 px-6 rounded-lg font-semibold text-sm border border-[#0a0a0a]/20 dark:border-white/20 text-[#0a0a0a] dark:text-white hover:bg-[#0a0a0a]/5 dark:hover:bg-white/10 transition-all duration-200">
+                Sign in
+              </button>
+            </Link>
+            <Link to="/login" state={{ tab: "signup" }}>
+              <button
+                className="inline-flex items-center gap-2 h-11 px-6 rounded-lg font-bold text-sm bg-[#76b900] text-[#0a0a0a] transition-all duration-200 hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]"
+                style={{ boxShadow: "0 0 20px rgba(118,185,0,0.3)" }}
+              >
+                Sign up
+              </button>
+            </Link>
+          </div>
+
+          <p className="text-xs text-[#0a0a0a]/35 dark:text-white/25">
+            Powered by Stripe · Cancel anytime · Test card: 4242 4242 4242 4242
+          </p>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-24 sm:py-32 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#76b900]/30 to-transparent" />
@@ -255,6 +349,7 @@ export default function Landing() {
           </Link>
           <div className="flex items-center gap-6 text-sm text-[#0a0a0a]/45 dark:text-white/40">
             <Link to="/#features" className="hover:text-[#76b900] transition-colors">Features</Link>
+            <Link to="/#pricing" className="hover:text-[#76b900] transition-colors">Pricing</Link>
             <Link to="/about" className="hover:text-[#76b900] transition-colors">About</Link>
             <Link to="/login" className="hover:text-[#76b900] transition-colors">Log in</Link>
           </div>

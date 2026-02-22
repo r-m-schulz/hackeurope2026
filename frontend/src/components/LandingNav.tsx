@@ -25,6 +25,12 @@ export function LandingNav() {
             Features
           </Link>
           <Link
+            to="/#pricing"
+            className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
+          >
+            Pricing
+          </Link>
+          <Link
             to="/about"
             className="text-sm font-medium px-3 py-2 rounded-md transition-colors hidden sm:block text-[#0a0a0a]/50 dark:text-white/50 hover:text-[#0a0a0a] dark:hover:text-white"
           >
