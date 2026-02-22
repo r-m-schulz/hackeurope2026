@@ -9,9 +9,22 @@ const PRICE_ID = process.env.STRIPE_PRICE_ID;
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+// Allowed origins for return URL (so we redirect back to the app the user came from)
+function getAllowedReturnOrigin(incoming) {
+  if (!incoming || typeof incoming !== 'string') return null;
+  const origin = incoming.replace(/\/$/, '');
+  if (origin === 'http://localhost:5173' || origin === 'http://localhost:4173') return origin;
+  if (origin.endsWith('.vercel.app')) return origin;
+  if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL.replace(/\/$/, '')) return origin;
+  return null;
+}
+
 // POST /stripe/create-checkout-session
+// Body may include return_base_url (origin where the user started, e.g. https://yourapp.vercel.app)
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   const userId = req.userId;
+  const returnOrigin = getAllowedReturnOrigin(req.body?.return_base_url);
+  const baseUrl = returnOrigin || FRONTEND_URL.replace(/\/$/, '');
 
   // Get user's email + existing stripe_customer_id from user_profiles
   const { data: profile, error: profileError } = await supabaseAdmin
@@ -52,8 +65,8 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     customer: customerId,
     mode: 'subscription',
     line_items: [{ price: PRICE_ID, quantity: 1 }],
-    success_url: `${FRONTEND_URL}/dashboard?checkout=success`,
-    cancel_url: `${FRONTEND_URL}/subscribe`,
+    success_url: `${baseUrl}/dashboard?checkout=success`,
+    cancel_url: `${baseUrl}/subscribe`,
     metadata: { user_id: userId },
   });
 

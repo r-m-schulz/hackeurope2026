@@ -30,7 +30,7 @@ export default function Subscribe() {
     const token = getToken()!;
     setLoading(true);
     try {
-      const { url } = await api.stripe.createCheckoutSession(token);
+      const { url } = await api.stripe.createCheckoutSession(token, window.location.origin);
       window.location.href = url;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not start checkout. Please try again.");

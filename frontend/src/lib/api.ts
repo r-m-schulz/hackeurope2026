@@ -140,8 +140,8 @@ export const api = {
   },
 
   stripe: {
-    createCheckoutSession: (token: string) =>
-      post<{ url: string }>("/stripe/create-checkout-session", {}, token),
+    createCheckoutSession: (token: string, returnBaseUrl?: string) =>
+      post<{ url: string }>("/stripe/create-checkout-session", { return_base_url: returnBaseUrl ?? (typeof window !== "undefined" ? window.location.origin : undefined) }, token),
 
     subscriptionStatus: (token: string) =>
       get<{ isPro: boolean; status: string }>("/stripe/subscription-status", undefined, token),
