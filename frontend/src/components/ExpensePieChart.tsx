@@ -116,9 +116,14 @@ export function ExpensePieChart({ data }: ExpensePieChartProps) {
                 dataKey="amount"
                 nameKey="category"
               >
-                {chartData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
+{chartData.map((_, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index % COLORS.length]}
+                  stroke="hsl(var(--pie-segment-stroke))"
+                  strokeWidth={1}
+                />
+              ))}
               </Pie>
               <Tooltip
                 content={({ active, payload }) => {
