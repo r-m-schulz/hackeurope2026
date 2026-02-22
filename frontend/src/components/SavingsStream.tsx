@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { TrendingDown, Check, X, Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { TrendingDown, Check, X, Sparkles, Loader2, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/finance-engine";
-import { ProGate } from "@/components/ProGate";
+import { getIsPro } from "@/lib/auth";
 import type { CFOSavingsItem } from "@/lib/types";
 
 interface SavingsStreamProps {
@@ -194,11 +195,28 @@ export function SavingsStream({
             </span>
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            Tax loopholes, legal grey areas, and cheaper subscription alternatives. From your real data.
+            Tax loopholes, legal grey areas, and cheaper subscription alternatives — from your real data.
           </p>
 
+          {/* Upgrade banner pinned above the cards when not pro */}
+          {!getIsPro() && (
+            <div className="flex items-center justify-between gap-3 mb-3 px-4 py-3 rounded-xl border border-[#76b900]/30 bg-[#76b900]/5">
+              <div className="flex items-center gap-2">
+                <Zap className="h-3.5 w-3.5 text-[#76b900] shrink-0" />
+                <span className="text-xs font-medium text-[#76b900]">Unlock personalised AI savings</span>
+              </div>
+              <Link
+                to="/subscribe"
+                className="shrink-0 px-3 py-1.5 rounded-lg font-bold text-xs bg-[#76b900] text-[#0a0a0a] hover:brightness-110 hover:scale-[1.015] active:scale-[0.985] transition-all duration-150"
+                style={{ boxShadow: "0 0 14px rgba(118,185,0,0.25)" }}
+              >
+                Upgrade to Pro
+              </Link>
+            </div>
+          )}
+
           <div className="overflow-y-auto max-h-[28rem] pr-1 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border">
-            <ProGate label="AI Personalised Savings — Pro feature">
+            {getIsPro() ? (
               <ProSavingsContent
                 proItems={proItems}
                 proLoading={proLoading}
@@ -207,7 +225,18 @@ export function SavingsStream({
                 onReview={handleReview}
                 onIgnore={handleIgnore}
               />
-            </ProGate>
+            ) : (
+              <div className="blur-sm pointer-events-none select-none" aria-hidden>
+                <ProSavingsContent
+                  proItems={proItems}
+                  proLoading={proLoading}
+                  proError={proError}
+                  hiddenIds={hiddenIds}
+                  onReview={handleReview}
+                  onIgnore={handleIgnore}
+                />
+              </div>
+            )}
           </div>
         </div>
 
