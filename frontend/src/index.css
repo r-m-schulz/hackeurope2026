@@ -160,6 +160,39 @@
   }
 }
 
+/* Landing hero: subtle moving glow (green gradient blobs) */
+@keyframes glow-float {
+  0%, 100% { opacity: 0.22; transform: translate(0, 0) scale(1); }
+  33% { opacity: 0.35; transform: translate(2%, -1%) scale(1.02); }
+  66% { opacity: 0.28; transform: translate(-1%, 2%) scale(0.98); }
+}
+@keyframes glow-float-alt {
+  0%, 100% { opacity: 0.12; transform: translate(0, 0) scale(1); }
+  50% { opacity: 0.25; transform: translate(-2%, 1%) scale(1.03); }
+}
+/* Light mode: stronger keyframes so the glow pops on light gray */
+@keyframes glow-float-light {
+  0%, 100% { opacity: 0.38; transform: translate(0, 0) scale(1); }
+  33% { opacity: 0.52; transform: translate(2%, -1%) scale(1.02); }
+  66% { opacity: 0.44; transform: translate(-1%, 2%) scale(0.98); }
+}
+@keyframes glow-float-alt-light {
+  0%, 100% { opacity: 0.24; transform: translate(0, 0) scale(1); }
+  50% { opacity: 0.38; transform: translate(-2%, 1%) scale(1.03); }
+}
+.animate-glow-float {
+  animation: glow-float 12s ease-in-out infinite;
+}
+.animate-glow-float-alt {
+  animation: glow-float-alt 14s ease-in-out infinite;
+}
+:root:not(.dark) .animate-glow-float {
+  animation: glow-float-light 12s ease-in-out infinite;
+}
+:root:not(.dark) .animate-glow-float-alt {
+  animation: glow-float-alt-light 14s ease-in-out infinite;
+}
+
 @layer utilities {
   .text-safe {
     color: hsl(var(--safe));

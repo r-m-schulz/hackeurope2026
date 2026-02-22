@@ -84,15 +84,26 @@ export default function Landing() {
     <div className="min-h-screen overflow-x-hidden bg-[#f5f5f5] dark:bg-[#0a0a0a] text-[#0a0a0a] dark:text-white">
       <LandingNav />
 
-      {/* Hero */}
+      {/* Hero – green gradient glow (dynamic on landing, like sign-in left panel) */}
       <section className="relative overflow-hidden">
-        {/* NVIDIA green glow blobs */}
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div className="absolute top-[-100px] left-1/3 w-[700px] h-[500px] rounded-full blur-[120px] opacity-20 dark:opacity-30 bg-[#76b900]" />
-          <div className="absolute bottom-0 right-1/4 w-[500px] h-[400px] rounded-full blur-[100px] opacity-10 dark:opacity-20 bg-[#76b900]" />
+        {/* Glow layer: z-0 so it’s above section background; content is z-10 so text stays on top */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <div
+            className="absolute -top-24 left-1/4 w-[600px] h-[500px] rounded-full blur-[130px] bg-[#76b900] opacity-[0.42] dark:opacity-30 animate-glow-float"
+            aria-hidden
+          />
+          <div
+            className="absolute bottom-0 right-1/4 w-[500px] h-[400px] rounded-full blur-[110px] bg-[#76b900] opacity-[0.28] dark:opacity-20 animate-glow-float-alt"
+            aria-hidden
+          />
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[350px] rounded-full blur-[100px] bg-[#76b900] opacity-[0.2] dark:opacity-15 animate-glow-float"
+            style={{ animationDelay: "-4s" }}
+            aria-hidden
+          />
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32 sm:pt-32 sm:pb-40">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-32 sm:pt-32 sm:pb-40">
           <div className="text-center max-w-4xl mx-auto">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium mb-8 border border-[#76b900]/40 bg-[#76b900]/10 text-[#5a8d00] dark:text-[#76b900]">
