@@ -54,16 +54,77 @@ export function detectRecurringPayments(transactions: Transaction[]): RecurringP
   return recurring;
 }
 
-export function estimateTaxes(transactions: Transaction[]) {
-  const totalIncome = transactions.filter((t) => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
-  const totalExpenses = transactions.filter((t) => t.type === "expense").reduce((acc, t) => acc + t.amount, 0);
-  const payrollExpenses = transactions.filter((t) => t.category === "Payroll").reduce((acc, t) => acc + t.amount, 0);
-  const profit = totalIncome - totalExpenses;
+/** Recurring income streams (same pattern as expenses: same merchant, similar amount, ~monthly). */
+function detectRecurringIncome(transactions: Transaction[]): { averageAmount: number; frequency: number }[] {
+  const incomeTxns = transactions.filter((t) => t.type === "income");
+  const merchantGroups: Record<string, Transaction[]> = {};
+  for (const t of incomeTxns) {
+    if (!merchantGroups[t.merchant]) merchantGroups[t.merchant] = [];
+    merchantGroups[t.merchant].push(t);
+  }
+  const recurring: { averageAmount: number; frequency: number }[] = [];
+  for (const [, txns] of Object.entries(merchantGroups)) {
+    if (txns.length < 2) continue;
+    const sorted = [...txns].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const amounts = sorted.map((t) => t.amount);
+    const avgAmount = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+    if (!amounts.every((a) => Math.abs(a - avgAmount) / avgAmount <= 0.05)) continue;
+    const intervals: number[] = [];
+    for (let i = 1; i < sorted.length; i++) {
+      intervals.push(
+        (new Date(sorted[i].date).getTime() - new Date(sorted[i - 1].date).getTime()) / (1000 * 60 * 60 * 24)
+      );
+    }
+    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    if (avgInterval < 20 || avgInterval > 40) continue;
+    recurring.push({
+      averageAmount: Math.round(avgAmount * 100) / 100,
+      frequency: Math.round(avgInterval),
+    });
+  }
+  return recurring;
+}
 
-  const vat = totalIncome * 0.23;
-  const corpTax = Math.max(0, profit * 0.125);
-  const prsi = payrollExpenses * 0.04;
+/** Annual income from recurring incoming payments only. */
+function getAnnualIncomeFromRecurring(transactions: Transaction[]): number {
+  const streams = detectRecurringIncome(transactions);
+  return streams.reduce((sum, r) => sum + r.averageAmount * (365 / Math.max(1, r.frequency)), 0);
+}
 
+const INDIVIDUAL_TAX_THRESHOLD = 17000;
+const INDIVIDUAL_STANDARD_BAND = 44000;
+const INDIVIDUAL_STANDARD_RATE = 0.2;
+const INDIVIDUAL_HIGHER_RATE = 0.4;
+
+/** SME: VAT 23%, corp 12.5%, PRSI 9% on earnings. Individual: income tax from recurring income only, 20% on first €44k, 40% above; no tax if <€17k. */
+export function estimateTaxes(
+  transactions: Transaction[],
+  taxConfig?: { type?: string; vatRate?: number; corpTaxRate?: number; prsiRate?: number } | null
+) {
+  const isIndividual = taxConfig?.type === "individual";
+
+  if (isIndividual) {
+    const annualIncome = getAnnualIncomeFromRecurring(transactions);
+    let incomeTax = 0;
+    if (annualIncome > INDIVIDUAL_TAX_THRESHOLD) {
+      const inStandard = Math.min(INDIVIDUAL_STANDARD_BAND, annualIncome);
+      const inHigher = Math.max(0, annualIncome - INDIVIDUAL_STANDARD_BAND);
+      incomeTax = inStandard * INDIVIDUAL_STANDARD_RATE + inHigher * INDIVIDUAL_HIGHER_RATE;
+    }
+    const total = Math.round(incomeTax * 100) / 100;
+    return {
+      vat: null,
+      corpTax: null,
+      prsi: 0,
+      incomeTax: total,
+      total,
+    };
+  }
+
+  const earnings = transactions.filter((t) => t.type === "income").reduce((acc, t) => acc + t.amount, 0);
+  const vat = earnings * 0.23;
+  const corpTax = earnings * 0.125;
+  const prsi = earnings * 0.09;
   return {
     vat: Math.round(vat * 100) / 100,
     corpTax: Math.round(corpTax * 100) / 100,
@@ -195,7 +256,7 @@ function getManualSubDeductionOnDate(subs: ManualSubscription[], dateStr: string
 /** Forecast using balance, detected recurring, manual subs, and tax (e.g. on day 30). All features use this. */
 export function generateForecastFromAppData(appData: AppData, days: number = 30): ForecastDay[] {
   const detected = detectRecurringPayments(appData.transactions);
-  const taxes = estimateTaxes(appData.transactions);
+  const taxes = estimateTaxes(appData.transactions, appData.taxConfig);
   const forecast: ForecastDay[] = [];
   let projected = appData.currentBalance;
   const today = new Date();
@@ -228,7 +289,7 @@ export function getExpenseBreakdownFromAppData(appData: AppData): ExpenseBreakdo
   }
   const subsTotal = appData.subscriptions.reduce((s, sub) => s + sub.amount, 0);
   if (subsTotal > 0) categories["Subscriptions (manual)"] = subsTotal;
-  const taxes = estimateTaxes(appData.transactions);
+  const taxes = estimateTaxes(appData.transactions, appData.taxConfig);
   if (taxes.total > 0) categories["Estimated Tax"] = taxes.total;
 
   return Object.entries(categories)
@@ -239,7 +300,7 @@ export function getExpenseBreakdownFromAppData(appData: AppData): ExpenseBreakdo
 /** Summary from AppData: balance, tax, upcoming (detected + manual), true available. */
 export function calculateSummaryFromAppData(appData: AppData): FinancialSummary {
   const balance = appData.currentBalance;
-  const taxes = estimateTaxes(appData.transactions);
+  const taxes = estimateTaxes(appData.transactions, appData.taxConfig);
   const detectedRecurring = detectRecurringPayments(appData.transactions);
   const upcomingDetected = getUpcomingRecurringTotal(detectedRecurring, 30);
   const upcomingManual = getUpcomingPaymentsManual(appData.subscriptions, 30);
@@ -250,9 +311,10 @@ export function calculateSummaryFromAppData(appData: AppData): FinancialSummary 
   return {
     balance: Math.round(balance * 100) / 100,
     estimatedTax: taxes.total,
-    estimatedVAT: taxes.vat,
-    estimatedCorpTax: taxes.corpTax,
-    estimatedPRSI: taxes.prsi,
+    estimatedVAT: taxes.vat ?? null,
+    estimatedCorpTax: taxes.corpTax ?? null,
+    estimatedPRSI: taxes.prsi ?? null,
+    estimatedIncomeTax: "incomeTax" in taxes ? taxes.incomeTax ?? null : null,
     recurringTotal: Math.round(recurringTotal * 100) / 100,
     trueAvailable: Math.round(trueAvailable * 100) / 100,
     riskRatio: Math.round(riskRatio * 100) / 100,

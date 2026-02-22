@@ -33,7 +33,7 @@ export interface CFOAnswerResult {
 
 /** Safe to spend now = balance - estimated VAT - corp tax - upcoming recurring (30d) */
 export function getSafeToSpendNow(appData: AppData, deltas?: CFOScenarioDeltas): number {
-  const taxes = estimateTaxes(appData.transactions);
+  const taxes = estimateTaxes(appData.transactions, appData.taxConfig);
   const detected = detectRecurringPayments(appData.transactions);
   const upcomingDetected = getUpcomingRecurringTotal(detected, 30);
   const upcomingManual = getUpcomingPaymentsManual(appData.subscriptions, 30);
@@ -179,7 +179,7 @@ export function computeCFOAnswer(
 ): CFOAnswerResult {
   const { monthlyAmount = 0, targetRunwayDays = DEFAULT_RUNWAY_TARGET_DAYS, deltas } = options;
   const detected = detectRecurringPayments(appData.transactions);
-  const taxes = estimateTaxes(appData.transactions);
+  const taxes = estimateTaxes(appData.transactions, appData.taxConfig);
 
   const safeToSpendNow = getSafeToSpendNow(appData, deltas);
   const runwayDays = getRunwayDays(appData, deltas);

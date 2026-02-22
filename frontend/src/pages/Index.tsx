@@ -125,9 +125,10 @@ const Index = () => {
       transactions: transactionsData?.transactions ?? [],
       subscriptions: subscriptionsData?.subscriptions ?? [],
       currentBalance: summaryData?.balance ?? 0,
-      taxConfig: { vatRate: 0.23, corpTaxRate: 0.125 },
+      taxConfig: { vatRate: 0.23, corpTaxRate: 0.125, type: userType as "sme" | "individual" },
     }),
     [
+      userType,
       transactionsData?.transactions,
       subscriptionsData?.subscriptions,
       summaryData?.balance,

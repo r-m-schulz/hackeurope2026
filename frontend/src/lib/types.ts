@@ -49,7 +49,8 @@ export interface ManualSubscription {
 
 export interface TaxConfig {
   vatRate: number;
-  corpTaxRate: number;
+  corpTaxRate?: number;
+  type?: "sme" | "individual";
 }
 
 /** Single source of truth for the app – transactions, manual subs, balance, tax config */

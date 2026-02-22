@@ -3,7 +3,7 @@ const TAX_CONFIGS = {
     type: 'sme',
     vatRate: 0.23,
     corpTaxRate: 0.125,
-    prsiRate: 0.04,
+    prsiRate: 0.09,
     incomeTaxRate: null,
     uscRate: null,
   },

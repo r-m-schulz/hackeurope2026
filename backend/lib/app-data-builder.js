@@ -1,8 +1,7 @@
 /**
  * Builds app data for display.
- * - If bank (Plaid) is connected: display only sandbox JSON data.
- * - If bank not connected: display user's DB data (transactions, balance, subscriptions).
- *   When DB is empty, show sandbox JSON as fallback.
+ * - Bank connected (Plaid): display only sandbox JSON (data/sandbox-{userType}.json).
+ * - No bank (manual data): display user's database data; when DB is empty, sandbox JSON as fallback.
  */
 
 const supabaseAdmin = require('../supabaseAdmin');
@@ -53,8 +52,8 @@ async function getTransactions(userType, userId = null) {
   }
   const accessToken = await getPlaidAccessToken(userId);
   if (accessToken) {
-    const transactions = await fetchPlaidTransactions(accessToken);
-    return { transactions };
+    const sandbox = getSandboxData(userType);
+    return { transactions: sandbox.transactions };
   }
   const { data, error } = await supabaseAdmin
     .from('transactions')
@@ -77,7 +76,11 @@ async function getBalance(userId, userType = null) {
     }
     return null;
   }
-  // Plaid doesn't provide balance via transactionsGet — use user_settings, fall back to sandbox
+  const accessToken = await getPlaidAccessToken(userId);
+  if (accessToken && userType) {
+    const sandbox = getSandboxData(userType);
+    return typeof sandbox.account?.currentBalance === 'number' ? sandbox.account.currentBalance : 0;
+  }
   const { data, error } = await supabaseAdmin
     .from('user_settings')
     .select('current_balance')
@@ -98,6 +101,11 @@ async function getSubscriptions(userId, userType = null) {
       return sandbox.subscriptions ?? [];
     }
     return [];
+  }
+  const accessToken = await getPlaidAccessToken(userId);
+  if (accessToken && userType) {
+    const sandbox = getSandboxData(userType);
+    return sandbox.subscriptions ?? [];
   }
   const { data, error } = await supabaseAdmin
     .from('subscriptions')

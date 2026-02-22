@@ -53,23 +53,63 @@ function detectRecurringPayments(transactions) {
   return recurring;
 }
 
+function detectRecurringIncome(transactions) {
+  const incomeTxns = transactions.filter(t => t.type === 'income');
+  const merchantGroups = {};
+  for (const t of incomeTxns) {
+    if (!merchantGroups[t.merchant]) merchantGroups[t.merchant] = [];
+    merchantGroups[t.merchant].push(t);
+  }
+  const recurring = [];
+  for (const [merchant, txns] of Object.entries(merchantGroups)) {
+    if (txns.length < 2) continue;
+    const sorted = [...txns].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const amounts = sorted.map(t => t.amount);
+    const avgAmount = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+    const allSimilar = amounts.every(a => Math.abs(a - avgAmount) / avgAmount <= 0.05);
+    if (!allSimilar) continue;
+    const intervals = [];
+    for (let i = 1; i < sorted.length; i++) {
+      const diff = (new Date(sorted[i].date).getTime() - new Date(sorted[i - 1].date).getTime()) / (1000 * 60 * 60 * 24);
+      intervals.push(diff);
+    }
+    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    if (avgInterval < 20 || avgInterval > 40) continue;
+    recurring.push({
+      merchant,
+      averageAmount: round2(avgAmount),
+      frequency: Math.round(avgInterval),
+    });
+  }
+  return recurring;
+}
+
+function getAnnualIncomeFromRecurring(transactions) {
+  const recurring = detectRecurringIncome(transactions);
+  if (recurring.length === 0) return 0;
+  return recurring.reduce((sum, r) => {
+    const periodsPerYear = 365 / Math.max(1, r.frequency);
+    return sum + r.averageAmount * periodsPerYear;
+  }, 0);
+}
+
+const INDIVIDUAL_TAX_THRESHOLD = 17000;
+const INDIVIDUAL_STANDARD_BAND = 44000;
+const INDIVIDUAL_STANDARD_RATE = 0.20;
+const INDIVIDUAL_HIGHER_RATE = 0.40;
+
 function estimateTaxes(transactions, taxConfig) {
-  const totalIncome = transactions
+  const earnings = transactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => acc + t.amount, 0);
 
   if (taxConfig.type === 'sme') {
-    const totalExpenses = transactions
-      .filter(t => t.type === 'expense')
-      .reduce((acc, t) => acc + t.amount, 0);
-    const payrollExpenses = transactions
-      .filter(t => t.category === 'Payroll')
-      .reduce((acc, t) => acc + t.amount, 0);
-    const profit = totalIncome - totalExpenses;
-
-    const vat = totalIncome * taxConfig.vatRate;
-    const corpTax = Math.max(0, profit * taxConfig.corpTaxRate);
-    const prsi = payrollExpenses * taxConfig.prsiRate;
+    const vatRate = taxConfig.vatRate != null ? taxConfig.vatRate : 0.23;
+    const corpRate = taxConfig.corpTaxRate != null ? taxConfig.corpTaxRate : 0.125;
+    const prsiRate = taxConfig.prsiRate != null ? taxConfig.prsiRate : 0.09;
+    const vat = earnings * vatRate;
+    const corpTax = earnings * corpRate;
+    const prsi = earnings * prsiRate;
 
     return {
       vat: round2(vat),
@@ -81,18 +121,21 @@ function estimateTaxes(transactions, taxConfig) {
     };
   }
 
-  // individual
-  const incomeTax = totalIncome * taxConfig.incomeTaxRate;
-  const usc = totalIncome * taxConfig.uscRate;
-  const prsi = totalIncome * taxConfig.prsiRate;
-
+  // individual: income from recurring incoming only; bands: 0 if <17k, 20% on first 44k, 40% on balance
+  const annualIncome = getAnnualIncomeFromRecurring(transactions);
+  let incomeTax = 0;
+  if (annualIncome > INDIVIDUAL_TAX_THRESHOLD) {
+    const inStandardBand = Math.min(INDIVIDUAL_STANDARD_BAND, annualIncome);
+    const inHigherBand = Math.max(0, annualIncome - INDIVIDUAL_STANDARD_BAND);
+    incomeTax = inStandardBand * INDIVIDUAL_STANDARD_RATE + inHigherBand * INDIVIDUAL_HIGHER_RATE;
+  }
   return {
     vat: null,
     corpTax: null,
-    prsi: round2(prsi),
+    prsi: 0,
     incomeTax: round2(incomeTax),
-    usc: round2(usc),
-    total: round2(incomeTax + usc + prsi),
+    usc: 0,
+    total: round2(incomeTax),
   };
 }
 
