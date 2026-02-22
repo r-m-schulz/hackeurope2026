@@ -111,7 +111,7 @@ export default function Landing() {
 
             <p className="text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10 text-[#0a0a0a]/60 dark:text-white/60">
               PocketCFO shows your real available cash after tax reserves and
-              recurring payments — so you're never surprised by the numbers.
+              recurring payments. So you're never surprised by the numbers.
             </p>
 
             {/* CTAs */}

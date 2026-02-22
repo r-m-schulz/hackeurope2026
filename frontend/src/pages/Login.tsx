@@ -85,12 +85,12 @@ export default function Login() {
         </div>
 
         {/* Logo */}
-        <div className="relative flex items-center gap-3">
+        <Link to="/" className="relative flex items-center gap-3 transition-opacity hover:opacity-75">
           <PocketCFOLogo size={36} className="text-white" />
           <span className="text-white font-bold text-lg tracking-tight">
             PocketCFO
           </span>
-        </div>
+        </Link>
 
         {/* Main content */}
         <div className="relative">
